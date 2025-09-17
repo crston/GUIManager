@@ -19,11 +19,11 @@ import java.util.Objects;
 public class ChatListener implements Listener {
 
     private final GUIManager plugin;
-    private final GUIListener guiListener;
+    private final ActionExecutor actionExecutor;
 
     public ChatListener(GUIManager plugin, GUIListener guiListener) {
         this.plugin = plugin;
-        this.guiListener = guiListener;
+        this.actionExecutor = new ActionExecutor(plugin, guiListener);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -55,7 +55,7 @@ public class ChatListener implements Listener {
             player.sendMessage(ChatColor.RED + "Player '" + targetName + "' not found or is offline.");
             return;
         }
-        guiListener.executeCommand(player, targetInfo.command(), target.getName());
+        actionExecutor.executeCommand(player, targetInfo.command(), targetInfo.executor(), target.getName());
     }
 
     private void processChatEdit(Player player, String message) {
@@ -68,7 +68,6 @@ public class ChatListener implements Listener {
             return;
         }
 
-        // <<< Switch expression changed to a traditional switch statement for Java 8 compatibility
         switch (session.getEditType()) {
             case NAME:
                 handleNameEdit(player, session, message);
@@ -81,21 +80,16 @@ public class ChatListener implements Listener {
             case LORE_EDIT:
                 handleLoreEdit(player, session, message);
                 break;
-            case MONEY_COST_LEFT:
-            case MONEY_COST_RIGHT:
-            case MONEY_COST_SHIFT_LEFT:
-            case MONEY_COST_SHIFT_RIGHT:
-            case MONEY_COST_F:
-            case MONEY_COST_SHIFT_F:
-            case MONEY_COST_Q:
-            case MONEY_COST_SHIFT_Q:
+            case MONEY_COST_LEFT: case MONEY_COST_RIGHT: case MONEY_COST_SHIFT_LEFT: case MONEY_COST_SHIFT_RIGHT:
+            case MONEY_COST_F: case MONEY_COST_SHIFT_F: case MONEY_COST_Q: case MONEY_COST_SHIFT_Q:
+            case COOLDOWN_LEFT: case COOLDOWN_RIGHT: case COOLDOWN_SHIFT_LEFT: case COOLDOWN_SHIFT_RIGHT:
+            case COOLDOWN_F: case COOLDOWN_SHIFT_F: case COOLDOWN_Q: case COOLDOWN_SHIFT_Q:
                 handleDoubleEdit(player, session, message);
                 break;
             default:
                 handleStringEdit(player, session, message);
                 break;
         }
-        // >>>
 
         plugin.endChatSession(player);
         ItemEditor.open(player, session);
@@ -151,17 +145,16 @@ public class ChatListener implements Listener {
         if (key == null) return;
         if (msg.equalsIgnoreCase("delete") || msg.equalsIgnoreCase("삭제")) {
             meta.getPersistentDataContainer().remove(key);
-            p.sendMessage(ChatColor.GREEN + "Cost removed.");
+            p.sendMessage(ChatColor.GREEN + "Value removed.");
         } else {
             try {
                 double value = Double.parseDouble(msg);
-                if (value <= 0) {
-                    meta.getPersistentDataContainer().remove(key);
-                    p.sendMessage(ChatColor.GREEN + "Cost removed.");
-                } else {
-                    meta.getPersistentDataContainer().set(key, PersistentDataType.DOUBLE, value);
-                    p.sendMessage(ChatColor.GREEN + "Cost set to " + value);
+                if (value < 0) {
+                    p.sendMessage(ChatColor.RED + "Value cannot be negative.");
+                    return;
                 }
+                meta.getPersistentDataContainer().set(key, PersistentDataType.DOUBLE, value);
+                p.sendMessage(ChatColor.GREEN + "Value set to " + value);
             } catch (NumberFormatException e) {
                 p.sendMessage(ChatColor.RED + "Invalid number format.");
             }

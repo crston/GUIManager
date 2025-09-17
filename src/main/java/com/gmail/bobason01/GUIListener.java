@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
@@ -21,13 +20,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
 
 public class GUIListener implements Listener {
 
     private final GUIManager plugin;
+    private final ActionExecutor actionExecutor;
 
     public GUIListener(GUIManager plugin) {
         this.plugin = plugin;
+        this.actionExecutor = new ActionExecutor(plugin, this);
     }
 
     @EventHandler(priority = EventPriority.LOW)
@@ -62,7 +64,7 @@ public class GUIListener implements Listener {
             GUI gui = plugin.getGui(guiId);
             if (gui != null) {
                 gui.updateFromInventory(event.getInventory());
-                plugin.saveGuis();
+                plugin.saveGui(guiId);
                 player.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' has been saved.");
             }
             plugin.removeEditMode(player);
@@ -95,6 +97,26 @@ public class GUIListener implements Listener {
 
             plugin.endCostSession(player);
             Bukkit.getScheduler().runTask(plugin, () -> ItemEditor.open(player, session));
+        } else if (title.startsWith(ItemEditor.TITLE_PREFIX)) {
+            if (plugin.hasChatSession(player) || plugin.isSettingCost(player)) {
+                return;
+            }
+            try {
+                String guiName = title.replace(ItemEditor.TITLE_PREFIX, "").split(" ")[0];
+                int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
+
+                ItemStack updatedItem = event.getInventory().getItem(4);
+                if (updatedItem == null) return;
+
+                GUI gui = plugin.getGui(guiName);
+                if (gui != null) {
+                    gui.setItem(itemSlot, updatedItem);
+                    player.sendMessage(ChatColor.GREEN + "Item properties saved.");
+                }
+            } catch (Exception e) {
+                player.sendMessage(ChatColor.RED + "There was an error auto-saving the item properties.");
+                plugin.getLogger().log(Level.WARNING, "Could not auto-save item from ItemEditor for player " + player.getName(), e);
+            }
         }
     }
 
@@ -164,6 +186,22 @@ public class GUIListener implements Listener {
             return;
         }
 
+        if (clickedItem.getType() == Material.COMMAND_BLOCK) {
+            if (event.isRightClick()) {
+                EditSession.EditType type = getCooldownEditTypeFromSlot(slot);
+                if (type != null) {
+                    session.setEditType(type);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                    sendChatPrompt(player, type);
+                    return;
+                }
+            } else if (event.isShiftClick() && event.isLeftClick()) {
+                cycleExecutor(player, session, slot);
+                return;
+            }
+        }
+
         EditSession.EditType type = getEditTypeFromSlot(slot);
         if (type != null) {
             session.setEditType(type);
@@ -179,11 +217,6 @@ public class GUIListener implements Listener {
                 player.closeInventory();
                 sendChatPrompt(player, type);
             }
-        } else if (slot == 8) {
-            GUI gui = plugin.getGui(session.getGuiName());
-            if (gui != null) gui.setItem(session.getSlot(), session.getItem());
-            player.closeInventory();
-            player.performCommand("gui edit " + session.getGuiName());
         }
     }
 
@@ -194,40 +227,9 @@ public class GUIListener implements Listener {
 
         event.setCancelled(true);
         ItemStack item = event.getCurrentItem();
-        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return;
+        if (item == null) return;
 
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return;
-
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        ClickType clickType = event.getClick();
-
-        NamespacedKey permKey = ActionKeyUtil.getPermissionKey(clickType);
-        String permission = pdc.get(permKey, PersistentDataType.STRING);
-        if (permission != null && !permission.isEmpty() && !player.hasPermission(permission)) {
-            String noPermMsg = pdc.get(GUIManager.KEY_PERMISSION_MESSAGE, PersistentDataType.STRING);
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', noPermMsg != null ? noPermMsg : "&cYou don't have permission."));
-            return;
-        }
-
-        NamespacedKey commandKey = ActionKeyUtil.getCommandKey(clickType);
-        String command = pdc.get(commandKey, PersistentDataType.STRING);
-
-        if (command != null && !command.isEmpty()) {
-            if (!checkAndTakeCosts(player, pdc, ActionKeyUtil.getMoneyCostKey(clickType), ActionKeyUtil.getItemCostKey(clickType))) {
-                return;
-            }
-
-            Byte requireTarget = pdc.get(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE);
-            if (requireTarget != null && requireTarget == 1 && command.contains("{target}")) {
-                plugin.setAwaitingTarget(player, new TargetInfo(command));
-                player.closeInventory();
-                player.sendMessage(ChatColor.GREEN + "Please enter the target player's name in chat. Type 'cancel' to abort.");
-            } else {
-                player.closeInventory();
-                executeCommand(player, command, null);
-            }
-        }
+        actionExecutor.execute(player, guiId, event.getSlot(), item, event.getClick());
     }
 
     private void openItemCostEditor(Player player, EditSession session) {
@@ -308,17 +310,6 @@ public class GUIListener implements Listener {
         return true;
     }
 
-    public void executeCommand(Player player, String command, String targetName) {
-        String finalCommand = command.replace("%player%", player.getName());
-        if (targetName != null) finalCommand = finalCommand.replace("{target}", targetName);
-        String finalCmdForScheduler = finalCommand;
-        Bukkit.getScheduler().runTask(plugin, () -> Bukkit.dispatchCommand(player, finalCmdForScheduler));
-    }
-
-    public void executeCommand(Player player, String command) {
-        executeCommand(player, command, null);
-    }
-
     private EditSession.EditType getEditTypeFromSlot(int slot) {
         if (slot >= 0 && slot <= 8) {
             switch (slot) {
@@ -338,7 +329,7 @@ public class GUIListener implements Listener {
             boolean isShift = col > 4;
             int actionIndex = isShift ? col - 5 : col;
             int baseOrdinal = EditSession.EditType.COMMAND_LEFT.ordinal();
-            int actionGroupOffset = (row * 8) + (isShift ? 4 : 0);
+            int actionGroupOffset = (row * 10) + (isShift ? 5 : 0);
             int typeOffset;
             switch(actionIndex) {
                 case 0: typeOffset = 0; break;
@@ -353,6 +344,50 @@ public class GUIListener implements Listener {
             }
         }
         return null;
+    }
+
+    private EditSession.EditType getCooldownEditTypeFromSlot(int slot) {
+        if (slot >= 9 && slot <= 44) {
+            int row = (slot - 9) / 9;
+            int col = (slot - 9) % 9;
+            if (col == 4) return null;
+            boolean isShift = col > 4;
+            int actionIndex = isShift ? col - 5 : col;
+            if (actionIndex == 0) { // Command block slot
+                int baseOrdinal = EditSession.EditType.COOLDOWN_LEFT.ordinal();
+                int actionGroupOffset = (row * 10) + (isShift ? 5 : 0);
+                int finalOrdinal = baseOrdinal + actionGroupOffset;
+                if (finalOrdinal < EditSession.EditType.values().length) {
+                    return EditSession.EditType.values()[finalOrdinal];
+                }
+            }
+        }
+        return null;
+    }
+
+    private void cycleExecutor(Player player, EditSession session, int slot) {
+        EditSession.EditType commandType = getEditTypeFromSlot(slot);
+        if (commandType == null || !commandType.name().startsWith("COMMAND_")) return;
+
+        EditSession.EditType executorType = EditSession.EditType.valueOf(commandType.name().replace("COMMAND_", "EXECUTOR_"));
+        NamespacedKey key = ActionKeyUtil.getKeyFromType(executorType);
+        if (key == null) return;
+
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) return;
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String currentExecutorName = pdc.getOrDefault(key, PersistentDataType.STRING, GUIManager.ExecutorType.PLAYER.name());
+        GUIManager.ExecutorType currentExecutor = GUIManager.ExecutorType.valueOf(currentExecutorName);
+
+        GUIManager.ExecutorType[] allTypes = GUIManager.ExecutorType.values();
+        int nextOrdinal = (currentExecutor.ordinal() + 1) % allTypes.length;
+        GUIManager.ExecutorType nextExecutor = allTypes[nextOrdinal];
+
+        pdc.set(key, PersistentDataType.STRING, nextExecutor.name());
+        session.getItem().setItemMeta(meta);
+
+        ItemEditor.open(player, session);
     }
 
     private void toggleRequireTarget(ItemStack item) {
@@ -382,36 +417,34 @@ public class GUIListener implements Listener {
 
     private void sendChatPrompt(Player player, EditSession.EditType type) {
         String msg;
-        switch (type) {
-            case NAME:
-                msg = "Enter the new item name.";
-                break;
-            case CUSTOM_MODEL_DATA:
-            case ITEM_DAMAGE:
-                msg = "Enter the new number value. Type 'delete' to remove.";
-                break;
-            case ITEM_MODEL_ID:
-                msg = "Enter the Item Model ID string. Type 'delete' to remove.";
-                break;
-            case LORE_ADD:
-                msg = "Enter the new lore line to add.";
-                break;
-            case LORE_EDIT:
-                msg = "Enter the new text for this lore line.";
-                break;
-            case MONEY_COST_LEFT:
-            case MONEY_COST_RIGHT:
-            case MONEY_COST_SHIFT_LEFT:
-            case MONEY_COST_SHIFT_RIGHT:
-            case MONEY_COST_F:
-            case MONEY_COST_SHIFT_F:
-            case MONEY_COST_Q:
-            case MONEY_COST_SHIFT_Q:
-                msg = "Enter the money cost. Type '0' or 'delete' to remove.";
-                break;
-            default:
-                msg = "Enter the text for the setting. Type 'delete' to remove.";
-                break;
+        if (type.name().startsWith("COOLDOWN_")) {
+            msg = "Enter the cooldown in seconds (e.g., 10.5). Type '0' or 'delete' to remove.";
+        } else {
+            switch (type) {
+                case NAME:
+                    msg = "Enter the new item name.";
+                    break;
+                case CUSTOM_MODEL_DATA:
+                case ITEM_DAMAGE:
+                    msg = "Enter the new number value. Type 'delete' to remove.";
+                    break;
+                case ITEM_MODEL_ID:
+                    msg = "Enter the Item Model ID string. Type 'delete' to remove.";
+                    break;
+                case LORE_ADD:
+                    msg = "Enter the new lore line to add.";
+                    break;
+                case LORE_EDIT:
+                    msg = "Enter the new text for this lore line.";
+                    break;
+                case MONEY_COST_LEFT: case MONEY_COST_RIGHT: case MONEY_COST_SHIFT_LEFT: case MONEY_COST_SHIFT_RIGHT:
+                case MONEY_COST_F: case MONEY_COST_SHIFT_F: case MONEY_COST_Q: case MONEY_COST_SHIFT_Q:
+                    msg = "Enter the money cost. Type '0' or 'delete' to remove.";
+                    break;
+                default:
+                    msg = "Enter the text for the setting. Type 'delete' to remove.";
+                    break;
+            }
         }
         player.sendMessage(ChatColor.GREEN + msg);
         player.sendMessage(ChatColor.YELLOW + "Type 'cancel' to abort.");

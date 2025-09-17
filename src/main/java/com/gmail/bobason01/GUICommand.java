@@ -32,7 +32,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
-        // Java 8 호환성을 위해 instanceof 패턴 매칭 변경
         if (!(sender instanceof Player)) {
             sender.sendMessage("This command can only be used by players.");
             return true;
@@ -45,7 +44,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         }
 
         String subCommand = args[0].toLowerCase();
-        // Java 8 호환성을 위해 switch 표현식을 switch 구문으로 변경
         switch (subCommand) {
             case "create":
                 wrapAdminCommand(player, this::handleCreate, "guimanager.admin.create", args);
@@ -77,6 +75,9 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             case "reload":
                 wrapAdminCommand(player, this::handleReload, "guimanager.admin.reload", args);
                 break;
+            case "import":
+                wrapAdminCommand(player, this::handleImport, "guimanager.admin.import", args);
+                break;
             case "open":
                 handleOpen(player, args);
                 break;
@@ -103,7 +104,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             final List<String> commands = new ArrayList<>();
             if (sender.hasPermission("guimanager.admin")) {
-                commands.addAll(Arrays.asList("create", "delete", "edit", "copy", "list", "reload", "editname", "edittitle", "editid", "editsize"));
+                commands.addAll(Arrays.asList("create", "delete", "edit", "copy", "list", "reload", "editname", "edittitle", "editid", "editsize", "import"));
             }
             commands.add("open");
             StringUtil.copyPartialMatches(currentArg, commands, completions);
@@ -118,6 +119,9 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 case "editid":
                 case "editsize":
                     StringUtil.copyPartialMatches(currentArg, plugin.getGuis().keySet(), completions);
+                    break;
+                case "import":
+                    StringUtil.copyPartialMatches(currentArg, Arrays.asList("guiplus"), completions);
                     break;
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
@@ -153,7 +157,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
         GUI gui = new GUI(title, lines * 9);
         plugin.addGui(id, gui);
-        plugin.saveGuis();
+        plugin.saveGui(id);
         player.sendMessage(ChatColor.GREEN + "GUI '" + id + "' created.");
 
         plugin.setEditMode(player, id);
@@ -172,7 +176,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             return;
         }
         plugin.removeGui(id);
-        plugin.saveGuis();
         player.sendMessage(ChatColor.GREEN + "GUI '" + id + "' has been deleted.");
     }
 
@@ -244,7 +247,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             assert meta != null;
             meta.setDisplayName(newName);
             item.setItemMeta(meta);
-            plugin.saveGuis();
+            plugin.saveGui(id);
             player.sendMessage(ChatColor.GREEN + "Item name in slot " + slot + " of GUI '" + id + "' updated.");
         } catch (NumberFormatException e) {
             player.sendMessage(ChatColor.RED + "Slot must be a number.");
@@ -263,7 +266,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         }
         String newTitle = ChatColor.translateAlternateColorCodes('&', String.join(" ", Arrays.copyOfRange(args, 2, args.length)));
         plugin.updateGuiTitle(id, newTitle);
-        plugin.saveGuis();
+        plugin.saveGui(id);
         player.sendMessage(ChatColor.GREEN + "GUI '" + id + "' title updated.");
     }
 
@@ -283,7 +286,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             return;
         }
         plugin.updateGuiId(oldId, newId);
-        plugin.saveGuis();
+        plugin.saveGui(newId);
         player.sendMessage(ChatColor.GREEN + "GUI ID '" + oldId + "' changed to '" + newId + "'.");
     }
 
@@ -304,7 +307,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 return;
             }
             plugin.updateGuiSize(id, lines);
-            plugin.saveGuis();
+            plugin.saveGui(id);
             player.sendMessage(ChatColor.GREEN + "GUI '" + id + "' size has been updated to " + lines + " lines (" + (lines * 9) + " slots).");
         } catch (NumberFormatException e) {
             player.sendMessage(ChatColor.RED + "Lines must be a number.");
@@ -329,7 +332,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         }
         GUI newGui = new GUI(originalGui);
         plugin.addGui(newId, newGui);
-        plugin.saveGuis();
+        plugin.saveGui(newId);
         player.sendMessage(ChatColor.GREEN + "Successfully copied '" + originalId + "' to '" + newId + "'.");
     }
 
@@ -345,6 +348,21 @@ public class GUICommand implements CommandExecutor, TabCompleter {
     private void handleReload(Player player, String[] args) {
         plugin.loadGuis();
         player.sendMessage(ChatColor.GREEN + "GUIManager config reloaded.");
+    }
+
+    private void handleImport(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "Usage: /gui import <plugin>");
+            player.sendMessage(ChatColor.YELLOW + "Supported plugins: guiplus");
+            return;
+        }
+        String pluginToImport = args[1].toLowerCase();
+        if (pluginToImport.equals("guiplus")) {
+            GUIPlusImporter importer = new GUIPlusImporter(plugin);
+            importer.importFromGUIPlus(player);
+        } else {
+            player.sendMessage(ChatColor.RED + "Unsupported plugin for import: " + args[1]);
+        }
     }
 
     private void handleOpen(Player sender, String[] args) {
@@ -389,6 +407,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             player.sendMessage(ChatColor.GOLD + "/gui edittitle <id> <title> - (GUI Title Change)");
             player.sendMessage(ChatColor.GOLD + "/gui editid <id> <new_id> - (GUI ID Change)");
             player.sendMessage(ChatColor.GOLD + "/gui editsize <id> <lines> - (GUI Size Change)");
+            player.sendMessage(ChatColor.GOLD + "/gui import <guiplus> - (Import from GUIPlus)");
         }
         player.sendMessage(ChatColor.GOLD + "/gui open <id> [player]");
     }

@@ -9,7 +9,7 @@ import java.util.Map;
 public class GUI {
 
     private String title;
-    private int size; // final 키워드 제거
+    private int size;
     private final Map<Integer, ItemStack> items = new HashMap<>();
 
     public GUI(String title, int size) {
@@ -30,17 +30,11 @@ public class GUI {
     public void setTitle(String title) { this.title = title; }
     public int getSize() { return size; }
 
-    /**
-     * GUI의 크기를 변경합니다. 크기가 줄어들 경우 범위를 벗어나는 아이템은 제거됩니다.
-     * @param newSize 새로운 GUI 크기 (반드시 9의 배수)
-     */
     public void setSize(int newSize) {
         if (newSize <= 0 || newSize % 9 != 0 || newSize > 54) {
-            return; // 유효하지 않은 사이즈는 무시
+            return;
         }
         this.size = newSize;
-
-        // 새로운 크기의 범위를 벗어나는 아이템들을 제거
         items.entrySet().removeIf(entry -> entry.getKey() >= newSize);
     }
 
