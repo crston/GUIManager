@@ -1,0 +1,36 @@
+name: GUIManager
+version: 1.0
+main: com.gmail.bobason01.GUIManager
+api-version: 1.13
+author: crston
+softdepend: [Vault]
+commands:
+  gui:
+    description: Manages GUIs.
+    usage: /gui <subcommand>
+    aliases: [guim]
+permissions:
+  guimanager.admin:
+    description: Allows all admin commands for GUIManager.
+    default: op
+  guimanager.admin.create:
+    description: Allows creating GUIs.
+    default: op
+  guimanager.admin.delete:
+    description: Allows deleting GUIs.
+    default: op
+  guimanager.admin.edit:
+    description: Allows editing GUIs.
+    default: op
+  guimanager.admin.copy:
+    description: Allows copying GUIs.
+    default: op
+  guimanager.admin.list:
+    description: Allows listing GUIs.
+    default: op
+  guimanager.admin.reload:
+    description: Allows reloading the config.
+    default: op
+  guimanager.open.*:
+    description: Allows opening any GUI.
+    default: op
