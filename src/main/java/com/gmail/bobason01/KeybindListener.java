@@ -23,8 +23,6 @@ public class KeybindListener implements Listener {
         if (item == null || !item.hasItemMeta()) return;
 
         actionExecutor.execute(event.getPlayer(), item, action);
-        // ActionExecutor handles all logic, so we can assume if it was handled, it should be cancelled.
-        // We need a way to know if an action was actually found.
         if (Objects.requireNonNull(item.getItemMeta()).getPersistentDataContainer().has(ActionKeyUtil.getCommandKey(action), org.bukkit.persistence.PersistentDataType.STRING)) {
             event.setCancelled(true);
         }

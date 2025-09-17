@@ -7,6 +7,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.StringUtil;
@@ -377,20 +378,25 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        Player target = sender;
         if (args.length >= 3) {
             if (!sender.hasPermission("guimanager.open.others")) {
                 noPermission(sender);
                 return;
             }
-            Player target = Bukkit.getPlayer(args[2]);
+            target = Bukkit.getPlayer(args[2]);
             if (target == null) {
                 sender.sendMessage(ChatColor.RED + "Player '" + args[2] + "' not found.");
                 return;
             }
-            target.openInventory(gui.getInventory());
         }
-        else {
-            sender.openInventory(gui.getInventory());
+
+        Inventory playerInventory = plugin.getPlayerSpecificInventory(target, id);
+        if (playerInventory != null) {
+            target.openInventory(playerInventory);
+            if (target != sender) {
+                sender.sendMessage(ChatColor.GREEN + "Opened GUI '" + id + "' for " + target.getName() + ".");
+            }
         }
     }
 

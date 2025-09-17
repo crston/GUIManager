@@ -329,7 +329,7 @@ public class GUIListener implements Listener {
             boolean isShift = col > 4;
             int actionIndex = isShift ? col - 5 : col;
             int baseOrdinal = EditSession.EditType.COMMAND_LEFT.ordinal();
-            int actionGroupOffset = (row * 10) + (isShift ? 5 : 0);
+            int actionGroupOffset = (row * 12) + (isShift ? 6 : 0);
             int typeOffset;
             switch(actionIndex) {
                 case 0: typeOffset = 0; break;
@@ -353,9 +353,9 @@ public class GUIListener implements Listener {
             if (col == 4) return null;
             boolean isShift = col > 4;
             int actionIndex = isShift ? col - 5 : col;
-            if (actionIndex == 0) { // Command block slot
+            if (actionIndex == 0) {
                 int baseOrdinal = EditSession.EditType.COOLDOWN_LEFT.ordinal();
-                int actionGroupOffset = (row * 10) + (isShift ? 5 : 0);
+                int actionGroupOffset = (row * 12) + (isShift ? 6 : 0);
                 int finalOrdinal = baseOrdinal + actionGroupOffset;
                 if (finalOrdinal < EditSession.EditType.values().length) {
                     return EditSession.EditType.values()[finalOrdinal];
@@ -378,7 +378,12 @@ public class GUIListener implements Listener {
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         String currentExecutorName = pdc.getOrDefault(key, PersistentDataType.STRING, GUIManager.ExecutorType.PLAYER.name());
-        GUIManager.ExecutorType currentExecutor = GUIManager.ExecutorType.valueOf(currentExecutorName);
+        GUIManager.ExecutorType currentExecutor;
+        try {
+            currentExecutor = GUIManager.ExecutorType.valueOf(currentExecutorName);
+        } catch(IllegalArgumentException e) {
+            currentExecutor = GUIManager.ExecutorType.PLAYER;
+        }
 
         GUIManager.ExecutorType[] allTypes = GUIManager.ExecutorType.values();
         int nextOrdinal = (currentExecutor.ordinal() + 1) % allTypes.length;
