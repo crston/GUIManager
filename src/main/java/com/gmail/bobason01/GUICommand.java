@@ -55,9 +55,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             case "edit":
                 wrapAdminCommand(player, this::handleEdit, "guimanager.admin.edit", args);
                 break;
-            case "editname":
-                wrapAdminCommand(player, this::handleEditName, "guimanager.admin.edit", args);
-                break;
             case "edittitle":
                 wrapAdminCommand(player, this::handleEditTitle, "guimanager.admin.edit", args);
                 break;
@@ -105,7 +102,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             final List<String> commands = new ArrayList<>();
             if (sender.hasPermission("guimanager.admin")) {
-                commands.addAll(Arrays.asList("create", "delete", "edit", "copy", "list", "reload", "editname", "edittitle", "editid", "editsize", "import"));
+                commands.addAll(Arrays.asList("create", "delete", "edit", "copy", "list", "reload", "edittitle", "editid", "editsize", "import"));
             }
             commands.add("open");
             StringUtil.copyPartialMatches(currentArg, commands, completions);
@@ -115,7 +112,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 case "edit":
                 case "open":
                 case "copy":
-                case "editname":
                 case "edittitle":
                 case "editid":
                 case "editsize":
@@ -218,41 +214,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         plugin.setEditMode(player, id);
         player.openInventory(gui.getInventory());
         player.sendMessage(ChatColor.GREEN + "Now editing item layout for '" + id + "'.");
-    }
-
-    private void handleEditName(Player player, String[] args) {
-        if (args.length < 4) {
-            player.sendMessage(ChatColor.RED + "Usage: /gui editname <id> <slot> <new_item_name>");
-            return;
-        }
-        String id = args[1].toLowerCase();
-        GUI gui = plugin.getGui(id);
-        if (gui == null) {
-            player.sendMessage(ChatColor.RED + "That GUI does not exist.");
-            return;
-        }
-        try {
-            int slot = Integer.parseInt(args[2]);
-            if (slot < 0 || slot >= gui.getSize()) {
-                player.sendMessage(ChatColor.RED + "Invalid slot number.");
-                return;
-            }
-            ItemStack item = gui.getItem(slot);
-            if (item == null || item.getType().isAir()) {
-                player.sendMessage(ChatColor.RED + "There is no item in slot " + slot + ".");
-                return;
-            }
-            String newName = ChatColor.translateAlternateColorCodes('&', String.join(" ", Arrays.copyOfRange(args, 3, args.length)));
-            ItemMeta meta = item.getItemMeta();
-            if (meta == null) meta = Bukkit.getItemFactory().getItemMeta(item.getType());
-            assert meta != null;
-            meta.setDisplayName(newName);
-            item.setItemMeta(meta);
-            plugin.saveGui(id);
-            player.sendMessage(ChatColor.GREEN + "Item name in slot " + slot + " of GUI '" + id + "' updated.");
-        } catch (NumberFormatException e) {
-            player.sendMessage(ChatColor.RED + "Slot must be a number.");
-        }
     }
 
     private void handleEditTitle(Player player, String[] args) {
@@ -378,6 +339,14 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        // --- PERMISSION CHECK ADDED ---
+        // The sender needs either the admin permission or the specific GUI open permission.
+        if (!sender.hasPermission("guimanager.admin") && !sender.hasPermission("guimanager.open." + id)) {
+            noPermission(sender);
+            return;
+        }
+        // --- END PERMISSION CHECK ---
+
         Player target = sender;
         if (args.length >= 3) {
             if (!sender.hasPermission("guimanager.open.others")) {
@@ -409,7 +378,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             player.sendMessage(ChatColor.GOLD + "/gui copy <original_id> <new_id>");
             player.sendMessage(ChatColor.GOLD + "/gui reload");
             player.sendMessage(ChatColor.GOLD + "/gui edit <id> [slot] - (GUI Editor)");
-            player.sendMessage(ChatColor.GOLD + "/gui editname <id> <slot> <name> - (Gui Name Change)");
             player.sendMessage(ChatColor.GOLD + "/gui edittitle <id> <title> - (GUI Title Change)");
             player.sendMessage(ChatColor.GOLD + "/gui editid <id> <new_id> - (GUI ID Change)");
             player.sendMessage(ChatColor.GOLD + "/gui editsize <id> <lines> - (GUI Size Change)");
