@@ -36,8 +36,9 @@ public class ActionExecutor {
         NamespacedKey itemCostKey = ActionKeyUtil.getItemCostKey(clickType);
         NamespacedKey cooldownKey = ActionKeyUtil.getCooldownKey(clickType);
         NamespacedKey executorKey = ActionKeyUtil.getExecutorKey(clickType);
+        NamespacedKey keepOpenKey = ActionKeyUtil.getKeepOpenKey(clickType);
 
-        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey);
+        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, keepOpenKey);
     }
 
     public void execute(Player player, ItemStack item, ActionKeyUtil.KeyAction keyAction) {
@@ -59,10 +60,10 @@ public class ActionExecutor {
         NamespacedKey cooldownKey = ActionKeyUtil.getCooldownKey(keyAction);
         NamespacedKey executorKey = ActionKeyUtil.getExecutorKey(keyAction);
 
-        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey);
+        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, null);
     }
 
-    private void execute(Player player, PersistentDataContainer pdc, String actionId, NamespacedKey commandKey, NamespacedKey permKey, NamespacedKey moneyCostKey, NamespacedKey itemCostKey, NamespacedKey cooldownKey, NamespacedKey executorKey) {
+    private void execute(Player player, PersistentDataContainer pdc, String actionId, NamespacedKey commandKey, NamespacedKey permKey, NamespacedKey moneyCostKey, NamespacedKey itemCostKey, NamespacedKey cooldownKey, NamespacedKey executorKey, NamespacedKey keepOpenKey) {
         long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
         if (remainingCooldown > 0) {
             player.sendMessage(ChatColor.RED + "You must wait " + String.format("%.1f", remainingCooldown / 1000.0) + " more seconds.");
@@ -87,16 +88,18 @@ public class ActionExecutor {
         String command = pdc.get(commandKey, PersistentDataType.STRING);
         if (command == null || command.isEmpty()) return;
 
+        boolean keepOpen = keepOpenKey != null && pdc.getOrDefault(keepOpenKey, PersistentDataType.BYTE, (byte) 0) == 1;
+
         Byte requireTarget = pdc.get(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE);
         String executorTypeName = pdc.get(executorKey, PersistentDataType.STRING);
         GUIManager.ExecutorType executor = executorTypeName != null ? GUIManager.ExecutorType.valueOf(executorTypeName) : GUIManager.ExecutorType.PLAYER;
 
         if (requireTarget != null && requireTarget == 1 && command.contains("{target}")) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, executor));
-            player.closeInventory();
+            if(!keepOpen) player.closeInventory();
             player.sendMessage(ChatColor.GREEN + "Please enter the target player's name in chat. Type 'cancel' to abort.");
         } else {
-            player.closeInventory();
+            if(!keepOpen) player.closeInventory();
             executeCommand(player, command, executor, null);
         }
     }

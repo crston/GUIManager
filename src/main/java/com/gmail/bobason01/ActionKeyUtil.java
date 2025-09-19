@@ -39,6 +39,11 @@ public final class ActionKeyUtil {
         return t.isLeftClick() ? GUIManager.KEY_EXECUTOR_LEFT : GUIManager.KEY_EXECUTOR_RIGHT;
     }
 
+    public static NamespacedKey getKeepOpenKey(ClickType t) {
+        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
+        return t.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_RIGHT;
+    }
+
     public static NamespacedKey getCommandKey(KeyAction a) {
         switch (a) {
             case F: return GUIManager.KEY_COMMAND_F;
@@ -107,6 +112,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_LEFT: return GUIManager.KEY_MONEY_COST_LEFT;
             case COOLDOWN_LEFT: return GUIManager.KEY_COOLDOWN_LEFT;
             case EXECUTOR_LEFT: return GUIManager.KEY_EXECUTOR_LEFT;
+            case KEEP_OPEN_LEFT: return GUIManager.KEY_KEEP_OPEN_LEFT;
 
             case COMMAND_SHIFT_LEFT: return GUIManager.KEY_COMMAND_SHIFT_LEFT;
             case PERMISSION_SHIFT_LEFT: return GUIManager.KEY_PERMISSION_SHIFT_LEFT;
@@ -114,6 +120,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_SHIFT_LEFT: return GUIManager.KEY_MONEY_COST_SHIFT_LEFT;
             case COOLDOWN_SHIFT_LEFT: return GUIManager.KEY_COOLDOWN_SHIFT_LEFT;
             case EXECUTOR_SHIFT_LEFT: return GUIManager.KEY_EXECUTOR_SHIFT_LEFT;
+            case KEEP_OPEN_SHIFT_LEFT: return GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
 
             case COMMAND_RIGHT: return GUIManager.KEY_COMMAND_RIGHT;
             case PERMISSION_RIGHT: return GUIManager.KEY_PERMISSION_RIGHT;
@@ -121,6 +128,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_RIGHT: return GUIManager.KEY_MONEY_COST_RIGHT;
             case COOLDOWN_RIGHT: return GUIManager.KEY_COOLDOWN_RIGHT;
             case EXECUTOR_RIGHT: return GUIManager.KEY_EXECUTOR_RIGHT;
+            case KEEP_OPEN_RIGHT: return GUIManager.KEY_KEEP_OPEN_RIGHT;
 
             case COMMAND_SHIFT_RIGHT: return GUIManager.KEY_COMMAND_SHIFT_RIGHT;
             case PERMISSION_SHIFT_RIGHT: return GUIManager.KEY_PERMISSION_SHIFT_RIGHT;
@@ -128,6 +136,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_SHIFT_RIGHT: return GUIManager.KEY_MONEY_COST_SHIFT_RIGHT;
             case COOLDOWN_SHIFT_RIGHT: return GUIManager.KEY_COOLDOWN_SHIFT_RIGHT;
             case EXECUTOR_SHIFT_RIGHT: return GUIManager.KEY_EXECUTOR_SHIFT_RIGHT;
+            case KEEP_OPEN_SHIFT_RIGHT: return GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
 
             case COMMAND_F: return GUIManager.KEY_COMMAND_F;
             case PERMISSION_F: return GUIManager.KEY_PERMISSION_F;

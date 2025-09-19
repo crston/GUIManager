@@ -119,13 +119,13 @@ public class GUIPlusImporter {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return itemStack;
 
-        // Bukkit이 자동으로 ItemMeta 객체로 변환한 경우를 직접 처리
         Object rawMetaObject = itemSection.get("meta");
-        ItemMeta sourceMeta = null;
         if (rawMetaObject instanceof ItemMeta) {
-            sourceMeta = (ItemMeta) rawMetaObject;
+            ItemMeta sourceMeta = (ItemMeta) rawMetaObject;
+            if (sourceMeta.hasDisplayName()) meta.setDisplayName(sourceMeta.getDisplayName());
+            if (sourceMeta.hasLore()) meta.setLore(sourceMeta.getLore());
+            if (sourceMeta.hasCustomModelData()) meta.setCustomModelData(sourceMeta.getCustomModelData());
         } else if (rawMetaObject instanceof Map) {
-            // 수동으로 Map을 파싱하는 예비 로직
             Map<String, Object> metaMap = (Map<String, Object>) rawMetaObject;
             if (metaMap.containsKey("display-name")) meta.setDisplayName(toLegacyText((String) metaMap.get("display-name")));
             if (metaMap.containsKey("lore")) {
@@ -134,27 +134,10 @@ public class GUIPlusImporter {
                 meta.setLore(legacyLore);
             }
             if (metaMap.containsKey("custom-model-data")) {
-                Object cmdObj = metaMap.get("custom-model-data");
-                if (cmdObj instanceof Map) {
-                    Map<?, ?> cmdMap = (Map<?, ?>) cmdObj;
-                    if (cmdMap.get("floats") instanceof List) {
-                        List<?> floats = (List<?>) cmdMap.get("floats");
-                        if (!floats.isEmpty() && floats.get(0) instanceof Number) {
-                            meta.setCustomModelData(((Number) floats.get(0)).intValue());
-                        }
-                    }
-                } else if (cmdObj instanceof Integer) {
-                    meta.setCustomModelData((Integer) cmdObj);
+                if (metaMap.get("custom-model-data") instanceof Integer) {
+                    meta.setCustomModelData((Integer) metaMap.get("custom-model-data"));
                 }
             }
-            sourceMeta = meta;
-        }
-
-        // 읽어온 메타데이터를 새로운 아이템에 복사
-        if (sourceMeta != null) {
-            if (sourceMeta.hasDisplayName()) meta.setDisplayName(sourceMeta.getDisplayName());
-            if (sourceMeta.hasLore()) meta.setLore(sourceMeta.getLore());
-            if (sourceMeta.hasCustomModelData()) meta.setCustomModelData(sourceMeta.getCustomModelData());
         }
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
@@ -162,17 +145,22 @@ public class GUIPlusImporter {
             pdc.set(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, meta.getCustomModelData());
         }
 
-        convertAction(pdc, itemDef, "leftaction", GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT);
-        convertAction(pdc, itemDef, "rightaction", GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT);
-        convertAction(pdc, itemDef, "shiftleftaction", GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT);
-        convertAction(pdc, itemDef, "shiftrightaction", GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_MONEY_COST_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT, GUIManager.KEY_COOLDOWN_SHIFT_RIGHT, GUIManager.KEY_EXECUTOR_SHIFT_RIGHT);
+        convertAction(pdc, itemDef, "leftaction", GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT, GUIManager.KEY_KEEP_OPEN_LEFT);
+        convertAction(pdc, itemDef, "rightaction", GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT, GUIManager.KEY_KEEP_OPEN_RIGHT);
+        convertAction(pdc, itemDef, "shiftleftaction", GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT, GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
+        convertAction(pdc, itemDef, "shiftrightaction", GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_MONEY_COST_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT, GUIManager.KEY_COOLDOWN_SHIFT_RIGHT, GUIManager.KEY_EXECUTOR_SHIFT_RIGHT, GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT);
 
         itemStack.setItemMeta(meta);
         return itemStack;
     }
 
-    private void convertAction(PersistentDataContainer pdc, ConfigurationSection itemDef, String actionKey, NamespacedKey commandKey, NamespacedKey moneyCostKey, NamespacedKey permissionKey, NamespacedKey cooldownKey, NamespacedKey executorKey) {
+    private void convertAction(PersistentDataContainer pdc, ConfigurationSection itemDef, String actionKey, NamespacedKey commandKey, NamespacedKey moneyCostKey, NamespacedKey permissionKey, NamespacedKey cooldownKey, NamespacedKey executorKey, NamespacedKey keepOpenKey) {
         if (itemDef.isConfigurationSection(actionKey)) {
+            // closeInv 설정 변환 (GUIPlus: closeInv: true -> GUIManager: keepOpen: false)
+            boolean closeInv = itemDef.getBoolean(actionKey + ".closeInv", true); // GUIPlus의 기본값은 닫는 것(true)으로 가정
+            byte keepOpenValue = (byte) (closeInv ? 0 : 1); // closeInv가 true이면 keepOpen은 0 (false)
+            pdc.set(keepOpenKey, PersistentDataType.BYTE, keepOpenValue);
+
             if (itemDef.isSet(actionKey + ".commands")) {
                 String command = itemDef.getStringList(actionKey + ".commands").stream().findFirst().orElse("");
                 if (!command.isEmpty()) {
@@ -214,6 +202,9 @@ public class GUIPlusImporter {
                     pdc.set(cooldownKey, PersistentDataType.DOUBLE, cooldownMillis / 1000.0);
                 }
             }
+        } else {
+            // actionKey 섹션이 없으면 기본값(닫지 않음)으로 설정
+            pdc.set(keepOpenKey, PersistentDataType.BYTE, (byte) 1);
         }
     }
 

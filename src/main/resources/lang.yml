@@ -1,0 +1,76 @@
+# A prefix that will always appear before messages.
+prefix: "&e[GUI] &f"
+
+# General messages
+error: "&cAn unexpected error occurred."
+no_permission: "&cYou do not have permission to use this command."
+player_only: "This command can only be used by players."
+player_not_found: "&cPlayer '{player}' not found."
+gui_not_exist: "&cGUI with ID '{id}' does not exist."
+gui_already_exist: "&cA GUI with ID '{id}' already exists."
+
+# Command related messages
+command:
+  help:
+    header: "--- GUIManager Help ---"
+    create: "/gui create <id> <lines> <title>"
+    delete: "/gui delete <id>"
+    list: "/gui list"
+    copy: "/gui copy <original_id> <new_id>"
+    reload: "/gui reload"
+    edit: "/gui edit <id> [slot] - (GUI Editor)"
+    edittitle: "/gui edittitle <id> <title> - (GUI Title Change)"
+    editid: "/gui editid <id> <new_id> - (GUI ID Change)"
+    editsize: "/gui editsize <id> <lines> - (GUI Size Change)"
+    import: "/gui import <guiplus> - (Import from GUIPlus)"
+    open: "/gui open <id> [player]"
+
+  create:
+    usage: "&cUsage: /gui create <id> <lines> <title>"
+    invalid_lines: "&cLines must be a number between 1 and 6."
+    success: "&aGUI '{id}' created."
+    edit_mode: "&eEntering edit mode for the new GUI."
+
+  delete:
+    usage: "&cUsage: /gui delete <id>"
+    success: "&aGUI '{id}' has been deleted."
+
+  edit:
+    usage: "&cUsage: /gui edit <id> [slot]"
+    no_item: "&cThere is no item in slot {slot} to edit."
+    invalid_slot: "&cInvalid slot number provided. Opening main editor instead."
+    main_editor_info: "&aNow editing item layout for '{id}'."
+
+  edittitle:
+    usage: "&cUsage: /gui edittitle <id> <new_title>"
+    success: "&aGUI '{id}' title updated."
+
+  editid:
+    usage: "&cUsage: /gui editid <id> <new_id>"
+    success: "&aGUI ID '{old_id}' changed to '{new_id}'."
+
+  editsize:
+    usage: "&cUsage: /gui editsize <id> <lines>"
+    invalid_lines: "&cLines must be a number between 1 and 6."
+    success: "&aGUI '{id}' size has been updated to {lines} lines ({slots} slots)."
+
+  copy:
+    usage: "&cUsage: /gui copy <original_id> <new_id>"
+    original_not_exist: "&cOriginal GUI '{id}' does not exist."
+    success: "&aSuccessfully copied '{original_id}' to '{new_id}'."
+
+  list:
+    no_guis: "&eThere are no GUIs created yet."
+    header: "&aAvailable GUI IDs: &f"
+
+  reload:
+    success: "&aGUIManager config reloaded."
+
+  import:
+    usage: "&cUsage: /gui import <plugin>"
+    supported: "&eSupported plugins: guiplus"
+    unsupported: "&cUnsupported plugin for import: {plugin}"
+
+  open:
+    usage: "&cUsage: /gui open <id> [player]"
+    success_other: "&aOpened GUI '{id}' for {player}."

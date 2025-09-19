@@ -111,6 +111,7 @@ public class GUIListener implements Listener {
                 GUI gui = plugin.getGui(guiName);
                 if (gui != null) {
                     gui.setItem(itemSlot, updatedItem);
+                    plugin.saveGui(guiName);
                     player.sendMessage(ChatColor.GREEN + "Item properties saved.");
                 }
             } catch (Exception e) {
@@ -171,6 +172,15 @@ public class GUIListener implements Listener {
         int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
         EditSession session = new EditSession(guiName, itemSlot, currentIcon.clone());
 
+        if (slot == 8) {
+            GUI gui = plugin.getGui(session.getGuiName());
+            if (gui != null) {
+                plugin.setEditMode(player, session.getGuiName());
+                player.openInventory(gui.getInventory());
+            }
+            return;
+        }
+
         if (slot == 53) {
             if (event.isShiftClick()) {
                 if (session.getLorePage() > 0) session.setLorePage(session.getLorePage() - 1);
@@ -209,8 +219,8 @@ public class GUIListener implements Listener {
                 openItemCostEditor(player, session);
             } else if (type.name().contains("MONEY_COST") && GUIManager.econ == null) {
                 player.sendMessage(ChatColor.RED + "This feature requires the Vault plugin.");
-            } else if (type == EditSession.EditType.REQUIRE_TARGET) {
-                toggleRequireTarget(session.getItem());
+            } else if (type == EditSession.EditType.REQUIRE_TARGET || type.name().startsWith("KEEP_OPEN")) {
+                toggleByte(session.getItem(), ActionKeyUtil.getKeyFromType(type));
                 ItemEditor.open(player, session);
             } else {
                 plugin.startChatSession(player, session);
@@ -311,63 +321,76 @@ public class GUIListener implements Listener {
     }
 
     private EditSession.EditType getEditTypeFromSlot(int slot) {
-        if (slot >= 0 && slot <= 8) {
-            switch (slot) {
-                case 0: return EditSession.EditType.NAME;
-                case 1: return EditSession.EditType.CUSTOM_MODEL_DATA;
-                case 2: return EditSession.EditType.ITEM_DAMAGE;
-                case 3: return EditSession.EditType.ITEM_MODEL_ID;
-                case 5: return EditSession.EditType.REQUIRE_TARGET;
-                case 6: return EditSession.EditType.PERMISSION_MESSAGE;
-                default: return null;
-            }
+        switch (slot) {
+            case 0: return EditSession.EditType.NAME;
+            case 1: return EditSession.EditType.CUSTOM_MODEL_DATA;
+            case 2: return EditSession.EditType.ITEM_DAMAGE;
+            case 3: return EditSession.EditType.ITEM_MODEL_ID;
+            case 5: return EditSession.EditType.REQUIRE_TARGET;
+            case 6: return EditSession.EditType.PERMISSION_MESSAGE;
+            case 9: return EditSession.EditType.COMMAND_LEFT;
+            case 10: return EditSession.EditType.MONEY_COST_LEFT;
+            case 11: return EditSession.EditType.COST_LEFT;
+            case 12: return EditSession.EditType.KEEP_OPEN_LEFT;
+            case 14: return EditSession.EditType.COMMAND_SHIFT_LEFT;
+            case 15: return EditSession.EditType.MONEY_COST_SHIFT_LEFT;
+            case 16: return EditSession.EditType.COST_SHIFT_LEFT;
+            case 17: return EditSession.EditType.KEEP_OPEN_SHIFT_LEFT;
+            case 18: return EditSession.EditType.COMMAND_RIGHT;
+            case 19: return EditSession.EditType.MONEY_COST_RIGHT;
+            case 20: return EditSession.EditType.COST_RIGHT;
+            case 21: return EditSession.EditType.KEEP_OPEN_RIGHT;
+            case 23: return EditSession.EditType.COMMAND_SHIFT_RIGHT;
+            case 24: return EditSession.EditType.MONEY_COST_SHIFT_RIGHT;
+            case 25: return EditSession.EditType.COST_SHIFT_RIGHT;
+            case 26: return EditSession.EditType.KEEP_OPEN_SHIFT_RIGHT;
+            case 27: return EditSession.EditType.COMMAND_F;
+            case 28: return EditSession.EditType.MONEY_COST_F;
+            case 29: return EditSession.EditType.COST_F;
+            case 30: return EditSession.EditType.PERMISSION_F;
+            case 32: return EditSession.EditType.COMMAND_SHIFT_F;
+            case 33: return EditSession.EditType.MONEY_COST_SHIFT_F;
+            case 34: return EditSession.EditType.COST_SHIFT_F;
+            case 35: return EditSession.EditType.PERMISSION_SHIFT_F;
+            case 36: return EditSession.EditType.COMMAND_Q;
+            case 37: return EditSession.EditType.MONEY_COST_Q;
+            case 38: return EditSession.EditType.COST_Q;
+            case 39: return EditSession.EditType.PERMISSION_Q;
+            case 41: return EditSession.EditType.COMMAND_SHIFT_Q;
+            case 42: return EditSession.EditType.MONEY_COST_SHIFT_Q;
+            case 43: return EditSession.EditType.COST_SHIFT_Q;
+            case 44: return EditSession.EditType.PERMISSION_SHIFT_Q;
+            default: return null;
         }
-        if (slot >= 9 && slot <= 44) {
-            int row = (slot - 9) / 9;
-            int col = (slot - 9) % 9;
-            if (col == 4) return null;
-            boolean isShift = col > 4;
-            int actionIndex = isShift ? col - 5 : col;
-            int baseOrdinal = EditSession.EditType.COMMAND_LEFT.ordinal();
-            int actionGroupOffset = (row * 12) + (isShift ? 6 : 0);
-            int typeOffset;
-            switch(actionIndex) {
-                case 0: typeOffset = 0; break;
-                case 1: typeOffset = 3; break;
-                case 2: typeOffset = 2; break;
-                case 3: typeOffset = 1; break;
-                default: return null;
-            }
-            int finalOrdinal = baseOrdinal + actionGroupOffset + typeOffset;
-            if (finalOrdinal < EditSession.EditType.values().length) {
-                return EditSession.EditType.values()[finalOrdinal];
-            }
-        }
-        return null;
     }
 
     private EditSession.EditType getCooldownEditTypeFromSlot(int slot) {
-        if (slot >= 9 && slot <= 44) {
-            int row = (slot - 9) / 9;
-            int col = (slot - 9) % 9;
-            if (col == 4) return null;
-            boolean isShift = col > 4;
-            int actionIndex = isShift ? col - 5 : col;
-            if (actionIndex == 0) {
-                int baseOrdinal = EditSession.EditType.COOLDOWN_LEFT.ordinal();
-                int actionGroupOffset = (row * 12) + (isShift ? 6 : 0);
-                int finalOrdinal = baseOrdinal + actionGroupOffset;
-                if (finalOrdinal < EditSession.EditType.values().length) {
-                    return EditSession.EditType.values()[finalOrdinal];
-                }
-            }
+        switch (slot) {
+            case 9: return EditSession.EditType.COOLDOWN_LEFT;
+            case 14: return EditSession.EditType.COOLDOWN_SHIFT_LEFT;
+            case 18: return EditSession.EditType.COOLDOWN_RIGHT;
+            case 23: return EditSession.EditType.COOLDOWN_SHIFT_RIGHT;
+            case 27: return EditSession.EditType.COOLDOWN_F;
+            case 32: return EditSession.EditType.COOLDOWN_SHIFT_F;
+            case 36: return EditSession.EditType.COOLDOWN_Q;
+            case 41: return EditSession.EditType.COOLDOWN_SHIFT_Q;
+            default: return null;
         }
-        return null;
     }
 
     private void cycleExecutor(Player player, EditSession session, int slot) {
-        EditSession.EditType commandType = getEditTypeFromSlot(slot);
-        if (commandType == null || !commandType.name().startsWith("COMMAND_")) return;
+        EditSession.EditType commandType;
+        switch (slot) {
+            case 9: commandType = EditSession.EditType.COMMAND_LEFT; break;
+            case 14: commandType = EditSession.EditType.COMMAND_SHIFT_LEFT; break;
+            case 18: commandType = EditSession.EditType.COMMAND_RIGHT; break;
+            case 23: commandType = EditSession.EditType.COMMAND_SHIFT_RIGHT; break;
+            case 27: commandType = EditSession.EditType.COMMAND_F; break;
+            case 32: commandType = EditSession.EditType.COMMAND_SHIFT_F; break;
+            case 36: commandType = EditSession.EditType.COMMAND_Q; break;
+            case 41: commandType = EditSession.EditType.COMMAND_SHIFT_Q; break;
+            default: return;
+        }
 
         EditSession.EditType executorType = EditSession.EditType.valueOf(commandType.name().replace("COMMAND_", "EXECUTOR_"));
         NamespacedKey key = ActionKeyUtil.getKeyFromType(executorType);
@@ -395,12 +418,12 @@ public class GUIListener implements Listener {
         ItemEditor.open(player, session);
     }
 
-    private void toggleRequireTarget(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return;
+    private void toggleByte(ItemStack item, NamespacedKey key) {
+        if (item == null || !item.hasItemMeta() || key == null) return;
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = Objects.requireNonNull(meta).getPersistentDataContainer();
-        byte currentState = pdc.getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0);
-        pdc.set(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) (currentState == 0 ? 1 : 0));
+        byte currentState = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
+        pdc.set(key, PersistentDataType.BYTE, (byte) (currentState == 0 ? 1 : 0));
         item.setItemMeta(meta);
     }
 

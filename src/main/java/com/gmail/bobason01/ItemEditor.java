@@ -24,7 +24,6 @@ public final class ItemEditor {
     public static final String TITLE_PREFIX = "§7[Item Editor] §6";
     public static final String COST_TITLE_PREFIX = "§7[Item Cost Editor] §e";
     private static final int LORE_SLOTS_PER_PAGE = 7;
-
     private static final ItemStack SEPARATOR_PANE;
 
     static {
@@ -47,45 +46,39 @@ public final class ItemEditor {
         inv.setItem(4, session.getItem());
         inv.setItem(5, createTargetToggleItem(session));
         inv.setItem(6, createOptionItem(Material.PAPER, "§eNo-Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default message", PersistentDataType.STRING));
+        inv.setItem(8, createOptionItem(Material.OAK_DOOR, "§cBack", "§7Returns to the GUI editor."));
 
-        createActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click", EditSession.EditType.COMMAND_LEFT, session);
-        createActionRow(inv, 18, "§bRight-Click", "§cShift+Right-Click", EditSession.EditType.COMMAND_RIGHT, session);
-        createActionRow(inv, 27, "§eF-Key", "§6Shift+F-Key", EditSession.EditType.COMMAND_F, session);
-        createActionRow(inv, 36, "§3Q-Key", "§9Shift+Q-Key", EditSession.EditType.COMMAND_Q, session);
+        createClickActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click", EditSession.EditType.COMMAND_LEFT, EditSession.EditType.COMMAND_SHIFT_LEFT, session);
+        createClickActionRow(inv, 18, "§bRight-Click", "§cShift+Right-Click", EditSession.EditType.COMMAND_RIGHT, EditSession.EditType.COMMAND_SHIFT_RIGHT, session);
+        createKeybindActionRow(inv, 27, "§eF-Key", "§6Shift+F-Key", EditSession.EditType.COMMAND_F, EditSession.EditType.COMMAND_SHIFT_F, session);
+        createKeybindActionRow(inv, 36, "§3Q-Key", "§9Shift+Q-Key", EditSession.EditType.COMMAND_Q, EditSession.EditType.COMMAND_SHIFT_Q, session);
 
         setLoreItemsAndPagination(inv, session);
         player.openInventory(inv);
     }
 
-    private static void createActionRow(Inventory inv, int startSlot, String name1, String name2, EditSession.EditType baseType, EditSession s) {
-        int baseOrdinal1 = baseType.ordinal();
-        int baseOrdinal2 = baseOrdinal1 + 6;
-
-        NamespacedKey cmdKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1]);
-        NamespacedKey permKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1 + 1]);
-        NamespacedKey costKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1 + 2]);
-        NamespacedKey moneyCostKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1 + 3]);
-        NamespacedKey cooldownKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1 + 4]);
-        NamespacedKey executorKey1 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal1 + 5]);
-
-        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", cmdKey1, cooldownKey1, executorKey1));
-        inv.setItem(startSlot + 1, createMoneyCostItem(s, moneyCostKey1));
-        inv.setItem(startSlot + 2, createItemCostItem(s, costKey1));
-        inv.setItem(startSlot + 3, createOptionItem(Material.IRON_BARS, "§f" + name1 + ": Permission", s, permKey1, "None", PersistentDataType.STRING));
-
+    private static void createClickActionRow(Inventory inv, int startSlot, String name1, String name2, EditSession.EditType baseType1, EditSession.EditType baseType2, EditSession s) {
+        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(baseType1), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_LEFT), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_LEFT)));
+        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_LEFT)));
+        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_LEFT)));
+        inv.setItem(startSlot + 3, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.KEEP_OPEN_LEFT)));
         inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
+        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(baseType2), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_SHIFT_LEFT), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_SHIFT_LEFT)));
+        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_SHIFT_LEFT)));
+        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_SHIFT_LEFT)));
+        inv.setItem(startSlot + 8, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.KEEP_OPEN_SHIFT_LEFT)));
+    }
 
-        NamespacedKey cmdKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2]);
-        NamespacedKey permKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2 + 1]);
-        NamespacedKey costKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2 + 2]);
-        NamespacedKey moneyCostKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2 + 3]);
-        NamespacedKey cooldownKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2 + 4]);
-        NamespacedKey executorKey2 = ActionKeyUtil.getKeyFromType(EditSession.EditType.values()[baseOrdinal2 + 5]);
-
-        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", cmdKey2, cooldownKey2, executorKey2));
-        inv.setItem(startSlot + 6, createMoneyCostItem(s, moneyCostKey2));
-        inv.setItem(startSlot + 7, createItemCostItem(s, costKey2));
-        inv.setItem(startSlot + 8, createOptionItem(Material.IRON_BARS, "§f" + name2 + ": Permission", s, permKey2, "None", PersistentDataType.STRING));
+    private static void createKeybindActionRow(Inventory inv, int startSlot, String name1, String name2, EditSession.EditType baseType1, EditSession.EditType baseType2, EditSession s) {
+        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(baseType1), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_F), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_F)));
+        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_F)));
+        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_F)));
+        inv.setItem(startSlot + 3, createOptionItem(Material.IRON_BARS, "§f" + name1 + ": Permission", s, ActionKeyUtil.getKeyFromType(EditSession.EditType.PERMISSION_F), "None", PersistentDataType.STRING));
+        inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
+        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(baseType2), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_SHIFT_F), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_SHIFT_F)));
+        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_SHIFT_F)));
+        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_SHIFT_F)));
+        inv.setItem(startSlot + 8, createOptionItem(Material.IRON_BARS, "§f" + name2 + ": Permission", s, ActionKeyUtil.getKeyFromType(EditSession.EditType.PERMISSION_SHIFT_F), "None", PersistentDataType.STRING));
     }
 
     private static void setLoreItemsAndPagination(Inventory inv, EditSession session) {
@@ -140,10 +133,29 @@ public final class ItemEditor {
     }
 
     private static ItemStack createCommandItem(EditSession session, String name, NamespacedKey commandKey, NamespacedKey cooldownKey, NamespacedKey executorKey) {
-        PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) {
+            return createOptionItem(Material.BARRIER, "§c" + name, Collections.singletonList("§cError: Missing ItemMeta"));
+        }
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         String command = pdc.getOrDefault(commandKey, PersistentDataType.STRING, "None");
         double cooldown = pdc.getOrDefault(cooldownKey, PersistentDataType.DOUBLE, 0.0);
-        String executorName = pdc.getOrDefault(executorKey, PersistentDataType.STRING, GUIManager.ExecutorType.PLAYER.name());
+        String executorName;
+
+        if (pdc.has(executorKey, PersistentDataType.BYTE)) {
+            byte executorOrdinal = pdc.getOrDefault(executorKey, PersistentDataType.BYTE, (byte) 0);
+            if (executorOrdinal >= 0 && executorOrdinal < GUIManager.ExecutorType.values().length) {
+                executorName = GUIManager.ExecutorType.values()[executorOrdinal].name();
+            } else {
+                executorName = GUIManager.ExecutorType.PLAYER.name();
+            }
+            pdc.remove(executorKey);
+            pdc.set(executorKey, PersistentDataType.STRING, executorName);
+            session.getItem().setItemMeta(meta);
+        } else {
+            executorName = pdc.getOrDefault(executorKey, PersistentDataType.STRING, GUIManager.ExecutorType.PLAYER.name());
+        }
 
         List<String> lore = new ArrayList<>();
         lore.add("§7Command: §f" + command);
@@ -155,6 +167,17 @@ public final class ItemEditor {
         lore.add("§eShift+Left-Click: §fCycle Executor");
 
         return createOptionItem(Material.COMMAND_BLOCK, "§f" + name, lore);
+    }
+
+    private static ItemStack createKeepOpenItem(EditSession session, NamespacedKey key) {
+        PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+        boolean enabled = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0) == 1;
+        Material material = enabled ? Material.ENDER_EYE : Material.ENDER_PEARL;
+        String name = "§eKeep GUI Open";
+        List<String> lore = Arrays.asList(
+                enabled ? "§7Status: §aEnabled" : "§7Status: §cDisabled",
+                "§fKeeps the GUI open after clicking.", " ", "§b(Click to toggle)");
+        return createOptionItem(material, name, lore);
     }
 
     private static ItemStack createOptionItem(Material material, String name, String lore) {

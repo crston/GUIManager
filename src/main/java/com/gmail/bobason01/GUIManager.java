@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,14 +30,16 @@ public final class GUIManager extends JavaPlugin {
     private static GUIManager instance;
     public static Economy econ = null;
     private boolean placeholderApiEnabled = false;
+    private BukkitTask autoSaveTask;
+    private LanguageManager languageManager;
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
     public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_DAMAGE, KEY_ITEM_MODEL_ID;
-    public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT;
-    public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
+    public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT, KEY_KEEP_OPEN_RIGHT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT, KEY_KEEP_OPEN_SHIFT_RIGHT;
     public static NamespacedKey KEY_COMMAND_F, KEY_PERMISSION_F, KEY_COST_F, KEY_MONEY_COST_F, KEY_COOLDOWN_F, KEY_EXECUTOR_F;
     public static NamespacedKey KEY_COMMAND_SHIFT_F, KEY_PERMISSION_SHIFT_F, KEY_COST_SHIFT_F, KEY_MONEY_COST_SHIFT_F, KEY_COOLDOWN_SHIFT_F, KEY_EXECUTOR_SHIFT_F;
     public static NamespacedKey KEY_COMMAND_Q, KEY_PERMISSION_Q, KEY_COST_Q, KEY_MONEY_COST_Q, KEY_COOLDOWN_Q, KEY_EXECUTOR_Q;
@@ -55,6 +58,8 @@ public final class GUIManager extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        this.languageManager = new LanguageManager(this);
+
         if (!setupEconomy()) {
             getLogger().warning("Vault not found! Money cost features will be disabled.");
         }
@@ -83,17 +88,29 @@ public final class GUIManager extends JavaPlugin {
         GUICommand guiCommand = new GUICommand(this);
         Objects.requireNonNull(getCommand("gui")).setExecutor(guiCommand);
         Objects.requireNonNull(getCommand("gui")).setTabCompleter(guiCommand);
+
+        long autoSaveInterval = 20L * 60 * 5; // 5 minutes
+        this.autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, this::saveGuis, autoSaveInterval, autoSaveInterval);
+
         getLogger().info("GUIManager has been enabled.");
     }
 
     @Override
     public void onDisable() {
+        if (this.autoSaveTask != null && !this.autoSaveTask.isCancelled()) {
+            this.autoSaveTask.cancel();
+        }
+        getLogger().info("Saving all GUI data before disabling...");
         saveGuis();
         getLogger().info("GUIManager has been disabled.");
     }
 
     public static GUIManager getInstance() {
         return instance;
+    }
+
+    public LanguageManager getLanguageManager() {
+        return languageManager;
     }
 
     private boolean setupEconomy() {
@@ -121,6 +138,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_MONEY_COST_LEFT = new NamespacedKey(this, "money_cost_left");
         KEY_COOLDOWN_LEFT = new NamespacedKey(this, "cooldown_left");
         KEY_EXECUTOR_LEFT = new NamespacedKey(this, "executor_left");
+        KEY_KEEP_OPEN_LEFT = new NamespacedKey(this, "keep_open_left");
 
         KEY_COMMAND_SHIFT_LEFT = new NamespacedKey(this, "cmd_s_left");
         KEY_PERMISSION_SHIFT_LEFT = new NamespacedKey(this, "perm_s_left");
@@ -128,6 +146,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_MONEY_COST_SHIFT_LEFT = new NamespacedKey(this, "money_cost_s_left");
         KEY_COOLDOWN_SHIFT_LEFT = new NamespacedKey(this, "cooldown_s_left");
         KEY_EXECUTOR_SHIFT_LEFT = new NamespacedKey(this, "executor_s_left");
+        KEY_KEEP_OPEN_SHIFT_LEFT = new NamespacedKey(this, "keep_open_s_left");
 
         KEY_COMMAND_RIGHT = new NamespacedKey(this, "cmd_right");
         KEY_PERMISSION_RIGHT = new NamespacedKey(this, "perm_right");
@@ -135,6 +154,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_MONEY_COST_RIGHT = new NamespacedKey(this, "money_cost_right");
         KEY_COOLDOWN_RIGHT = new NamespacedKey(this, "cooldown_right");
         KEY_EXECUTOR_RIGHT = new NamespacedKey(this, "executor_right");
+        KEY_KEEP_OPEN_RIGHT = new NamespacedKey(this, "keep_open_right");
 
         KEY_COMMAND_SHIFT_RIGHT = new NamespacedKey(this, "cmd_s_right");
         KEY_PERMISSION_SHIFT_RIGHT = new NamespacedKey(this, "perm_s_right");
@@ -142,6 +162,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_MONEY_COST_SHIFT_RIGHT = new NamespacedKey(this, "money_cost_s_right");
         KEY_COOLDOWN_SHIFT_RIGHT = new NamespacedKey(this, "cooldown_s_right");
         KEY_EXECUTOR_SHIFT_RIGHT = new NamespacedKey(this, "executor_s_right");
+        KEY_KEEP_OPEN_SHIFT_RIGHT = new NamespacedKey(this, "keep_open_s_right");
 
         KEY_COMMAND_F = new NamespacedKey(this, "cmd_f");
         KEY_PERMISSION_F = new NamespacedKey(this, "perm_f");
