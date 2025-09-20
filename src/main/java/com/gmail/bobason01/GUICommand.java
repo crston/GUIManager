@@ -32,18 +32,44 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+        if (args.length == 0) {
+            if (sender instanceof Player) {
+                sendHelp((Player) sender);
+            } else {
+                sender.sendMessage(plugin.getLanguageManager().getMessage("command.usage.console_main"));
+            }
+            return true;
+        }
+
+        String subCommand = args[0].toLowerCase();
+
+        switch (subCommand) {
+            case "open":
+                handleOpen(sender, args);
+                return true;
+            case "reload":
+                if (sender.hasPermission("guimanager.admin.reload")) {
+                    handleReload(sender, args);
+                } else {
+                    sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
+                }
+                return true;
+            case "list":
+                if (sender.hasPermission("guimanager.admin.list")) {
+                    handleList(sender, args);
+                } else {
+                    sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
+                }
+                return true;
+        }
+
+        // --- 여기서부터는 플레이어만 사용 가능한 명령어 ---
         if (!(sender instanceof Player)) {
             sender.sendMessage(plugin.getLanguageManager().getMessage("player_only"));
             return true;
         }
         Player player = (Player) sender;
 
-        if (args.length == 0) {
-            sendHelp(player);
-            return true;
-        }
-
-        String subCommand = args[0].toLowerCase();
         switch (subCommand) {
             case "create":
                 wrapAdminCommand(player, this::handleCreate, "guimanager.admin.create", args);
@@ -66,17 +92,8 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             case "copy":
                 wrapAdminCommand(player, this::handleCopy, "guimanager.admin.copy", args);
                 break;
-            case "list":
-                wrapAdminCommand(player, this::handleList, "guimanager.admin.list", args);
-                break;
-            case "reload":
-                wrapAdminCommand(player, this::handleReload, "guimanager.admin.reload", args);
-                break;
             case "import":
                 wrapAdminCommand(player, this::handleImport, "guimanager.admin.import", args);
-                break;
-            case "open":
-                handleOpen(player, args);
                 break;
             default:
                 sendHelp(player);
@@ -121,11 +138,89 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                     break;
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
-            if (sender.hasPermission("guimanager.open.others")) {
+            if (!(sender instanceof Player) || sender.hasPermission("guimanager.open.others")) {
                 StringUtil.copyPartialMatches(currentArg, Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList()), completions);
             }
         }
         return completions;
+    }
+
+
+    private void handleOpen(CommandSender sender, String[] args) {
+        // 플레이어 사용법: /gui open <id> [player]
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            if (args.length < 2) {
+                player.sendMessage(plugin.getLanguageManager().getMessage("command.open.usage"));
+                return;
+            }
+            String id = args[1].toLowerCase();
+            GUI gui = plugin.getGui(id);
+            if (gui == null) {
+                player.sendMessage(plugin.getLanguageManager().getMessage("gui_not_exist", "{id}", id));
+                return;
+            }
+            if (!player.hasPermission("guimanager.admin") && !player.hasPermission("guimanager.open." + id)) {
+                noPermission(player);
+                return;
+            }
+            Player target = player;
+            if (args.length >= 3) {
+                if (!player.hasPermission("guimanager.open.others")) {
+                    noPermission(player);
+                    return;
+                }
+                target = Bukkit.getPlayer(args[2]);
+                if (target == null) {
+                    player.sendMessage(plugin.getLanguageManager().getMessage("player_not_found", "{player}", args[2]));
+                    return;
+                }
+            }
+            Inventory playerInventory = plugin.getPlayerSpecificInventory(target, id);
+            if (playerInventory != null) {
+                target.openInventory(playerInventory);
+                if (target != player) {
+                    player.sendMessage(plugin.getLanguageManager().getMessage("command.open.success_other", "{id}", id, "{player}", target.getName()));
+                }
+            }
+        }
+        else {
+            if (args.length < 3) {
+                sender.sendMessage(plugin.getLanguageManager().getMessage("command.open.usage_console"));
+                return;
+            }
+            String id = args[1].toLowerCase();
+            String targetName = args[2];
+            GUI gui = plugin.getGui(id);
+            if (gui == null) {
+                sender.sendMessage(plugin.getLanguageManager().getMessage("gui_not_exist", "{id}", id));
+                return;
+            }
+            Player target = Bukkit.getPlayer(targetName);
+            if (target == null) {
+                sender.sendMessage(plugin.getLanguageManager().getMessage("player_not_found", "{player}", targetName));
+                return;
+            }
+            Inventory playerInventory = plugin.getPlayerSpecificInventory(target, id);
+            if (playerInventory != null) {
+                target.openInventory(playerInventory);
+            }
+        }
+    }
+
+    private void handleReload(CommandSender sender, String[] args) {
+        plugin.loadGuis();
+        plugin.getLanguageManager().reloadLangFile();
+        sender.sendMessage(plugin.getLanguageManager().getMessage("command.reload.success"));
+    }
+
+    private void handleList(CommandSender sender, String[] args) {
+        if (plugin.getGuis().isEmpty()) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("command.list.no_guis"));
+            return;
+        }
+        String guiList = String.join(", ", plugin.getGuis().keySet().stream().sorted().collect(Collectors.toList()));
+        sender.sendMessage(plugin.getLanguageManager().getMessage("command.list.header") + guiList);
     }
 
     private void handleCreate(Player player, String[] args) {
@@ -298,21 +393,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         player.sendMessage(plugin.getLanguageManager().getMessage("command.copy.success", "{original_id}", originalId, "{new_id}", newId));
     }
 
-    private void handleList(Player player, String[] args) {
-        if (plugin.getGuis().isEmpty()) {
-            player.sendMessage(plugin.getLanguageManager().getMessage("command.list.no_guis"));
-            return;
-        }
-        String guiList = String.join(", ", plugin.getGuis().keySet().stream().sorted().collect(Collectors.toList()));
-        player.sendMessage(plugin.getLanguageManager().getMessage("command.list.header") + guiList);
-    }
-
-    private void handleReload(Player player, String[] args) {
-        plugin.loadGuis();
-        plugin.getLanguageManager().reloadLangFile();
-        player.sendMessage(plugin.getLanguageManager().getMessage("command.reload.success"));
-    }
-
     private void handleImport(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(plugin.getLanguageManager().getMessage("command.import.usage"));
@@ -325,45 +405,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             importer.importFromGUIPlus(player);
         } else {
             player.sendMessage(plugin.getLanguageManager().getMessage("command.import.unsupported", "{plugin}", args[1]));
-        }
-    }
-
-    private void handleOpen(Player sender, String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("command.open.usage"));
-            return;
-        }
-        String id = args[1].toLowerCase();
-        GUI gui = plugin.getGui(id);
-        if (gui == null) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("gui_not_exist", "{id}", id));
-            return;
-        }
-
-        if (!sender.hasPermission("guimanager.admin") && !sender.hasPermission("guimanager.open." + id)) {
-            noPermission(sender);
-            return;
-        }
-
-        Player target = sender;
-        if (args.length >= 3) {
-            if (!sender.hasPermission("guimanager.open.others")) {
-                noPermission(sender);
-                return;
-            }
-            target = Bukkit.getPlayer(args[2]);
-            if (target == null) {
-                sender.sendMessage(plugin.getLanguageManager().getMessage("player_not_found", "{player}", args[2]));
-                return;
-            }
-        }
-
-        Inventory playerInventory = plugin.getPlayerSpecificInventory(target, id);
-        if (playerInventory != null) {
-            target.openInventory(playerInventory);
-            if (target != sender) {
-                sender.sendMessage(plugin.getLanguageManager().getMessage("command.open.success_other", "{id}", id, "{player}", target.getName()));
-            }
         }
     }
 
