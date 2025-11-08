@@ -12,6 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,7 +64,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 return true;
         }
 
-        // --- 여기서부터는 플레이어만 사용 가능한 명령어 ---
         if (!(sender instanceof Player)) {
             sender.sendMessage(plugin.getLanguageManager().getMessage("player_only"));
             return true;
@@ -134,7 +134,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                     StringUtil.copyPartialMatches(currentArg, plugin.getGuis().keySet(), completions);
                     break;
                 case "import":
-                    StringUtil.copyPartialMatches(currentArg, Arrays.asList("guiplus"), completions);
+                    StringUtil.copyPartialMatches(currentArg, Arrays.asList("guiplus", "deluxemenus"), completions);
                     break;
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
@@ -145,9 +145,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         return completions;
     }
 
-
     private void handleOpen(CommandSender sender, String[] args) {
-        // 플레이어 사용법: /gui open <id> [player]
         if (sender instanceof Player) {
             Player player = (Player) sender;
             if (args.length < 2) {
@@ -183,8 +181,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                     player.sendMessage(plugin.getLanguageManager().getMessage("command.open.success_other", "{id}", id, "{player}", target.getName()));
                 }
             }
-        }
-        else {
+        } else {
             if (args.length < 3) {
                 sender.sendMessage(plugin.getLanguageManager().getMessage("command.open.usage_console"));
                 return;
@@ -397,14 +394,61 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(plugin.getLanguageManager().getMessage("command.import.usage"));
             player.sendMessage(plugin.getLanguageManager().getMessage("command.import.supported"));
+            player.sendMessage("§7Supported: §eGUIPlus, DeluxeMenus");
             return;
         }
+
         String pluginToImport = args[1].toLowerCase();
-        if (pluginToImport.equals("guiplus")) {
-            GUIPlusImporter importer = new GUIPlusImporter(plugin);
-            importer.importFromGUIPlus(player);
-        } else {
-            player.sendMessage(plugin.getLanguageManager().getMessage("command.import.unsupported", "{plugin}", args[1]));
+
+        switch (pluginToImport) {
+            case "guiplus": {
+                GUIPlusImporter importer = new GUIPlusImporter(plugin);
+                importer.importFromGUIPlus(player);
+                break;
+            }
+
+            case "deluxemenus": {
+                // 자동 전체 변환 모드
+                File deluxeFolder = new File(
+                        Bukkit.getPluginManager().getPlugin("DeluxeMenus").getDataFolder(),
+                        "gui_menus"
+                );
+
+                if (!deluxeFolder.exists() || !deluxeFolder.isDirectory()) {
+                    player.sendMessage("§cDeluxeMenus menus folder not found.");
+                    return;
+                }
+
+                File[] files = deluxeFolder.listFiles((dir, name) -> name.endsWith(".yml"));
+                if (files == null || files.length == 0) {
+                    player.sendMessage("§eNo DeluxeMenus .yml files found in /DeluxeMenus/menus/");
+                    return;
+                }
+
+                DeluxeMenusImporter importer = new DeluxeMenusImporter(plugin);
+                int success = 0;
+                int failed = 0;
+
+                for (File file : files) {
+                    try {
+                        importer.importFromDeluxeMenus(player, file);
+                        success++;
+                    } catch (Exception e) {
+                        failed++;
+                        plugin.getLogger().warning("Failed to import: " + file.getName() + " (" + e.getMessage() + ")");
+                    }
+                }
+
+                player.sendMessage("§aImported §f" + success + "§a menu(s) successfully.");
+                if (failed > 0) player.sendMessage("§c" + failed + " file(s) failed to import. Check console for details.");
+                break;
+            }
+
+            default: {
+                player.sendMessage(plugin.getLanguageManager().getMessage("command.import.unsupported", "{plugin}", args[1]));
+                player.sendMessage("§7Supported plugins: §eGUIPlus, DeluxeMenus");
+                break;
+            }
         }
     }
 

@@ -499,4 +499,51 @@ public class GUIListener implements Listener {
         if (itemsToRemove == null) return;
         inventory.removeItem(itemsToRemove);
     }
+
+    public static void removeStaticItems(Player player, ItemStack[] items) {
+        if (items == null || items.length == 0) return;
+        for (ItemStack costItem : items) {
+            if (costItem == null || costItem.getType().isAir()) continue;
+            int remaining = costItem.getAmount();
+
+            for (ItemStack invItem : player.getInventory().getContents()) {
+                if (invItem == null || invItem.getType() != costItem.getType()) continue;
+                if (invItem.hasItemMeta() && costItem.hasItemMeta()) {
+                    ItemMeta invMeta = invItem.getItemMeta();
+                    ItemMeta costMeta = costItem.getItemMeta();
+                    // 이름/모델데이터가 다르면 다른 아이템으로 취급
+                    if (invMeta.hasDisplayName() && costMeta.hasDisplayName()
+                            && !invMeta.getDisplayName().equals(costMeta.getDisplayName())) continue;
+                    if (invMeta.hasCustomModelData() && costMeta.hasCustomModelData()
+                            && invMeta.getCustomModelData() != costMeta.getCustomModelData()) continue;
+                }
+
+                int invAmt = invItem.getAmount();
+                if (invAmt >= remaining) {
+                    invItem.setAmount(invAmt - remaining);
+                    remaining = 0;
+                    break;
+                } else {
+                    remaining -= invAmt;
+                    invItem.setAmount(0);
+                }
+            }
+
+            // 만약 제거해야 할 수량이 남았다면 제거 불가한 아이템이 존재한 것
+            if (remaining > 0) {
+                player.sendMessage(ChatColor.RED + "일부 아이템을 제거할 수 없습니다.");
+            }
+        }
+        player.updateInventory();
+    }
+
+    // 확장 버전 (CostBridge용)
+    public boolean checkAndTakeCosts(Player player,
+                                     PersistentDataContainer pdc,
+                                     NamespacedKey moneyCostKey,
+                                     NamespacedKey itemCostKey,
+                                     double moneyOverride,
+                                     String itemCostBase64) {
+        return CostBridge.checkAndTake(player, this, pdc, moneyCostKey, itemCostKey, moneyOverride, itemCostBase64);
+    }
 }

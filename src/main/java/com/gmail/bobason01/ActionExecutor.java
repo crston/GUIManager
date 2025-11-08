@@ -21,7 +21,41 @@ public class ActionExecutor {
     }
 
     public void execute(Player player, String guiId, int slot, ItemStack item, ClickType clickType) {
-        if (item == null || !item.hasItemMeta()) return;
+        if (item == null) return;
+
+        String variantKey = mapClickToKey(clickType);
+        GuiItemMeta.Variant cached = plugin.getCachedVariant(guiId, slot, variantKey);
+        if (cached != null && cached.command != null && !cached.command.isEmpty()) {
+            String actionId = guiId + ":" + slot + ":" + clickType.name();
+            long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
+            if (remainingCooldown > 0) {
+                player.sendMessage(ChatColor.RED + "You must wait " + String.format("%.1f", remainingCooldown / 1000.0) + " more seconds.");
+                return;
+            }
+            if (cached.permission != null && !cached.permission.isEmpty() && !player.hasPermission(cached.permission)) {
+                String noPermMsg = getNoPermMsgFromItem(item);
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&', noPermMsg != null ? noPermMsg : "&cYou don't have permission."));
+                return;
+            }
+            if (!guiListener.checkAndTakeCosts(player, makeFakePdc(item), null, null, cached.moneyCost, cached.itemCostBase64)) {
+                return;
+            }
+            if (cached.cooldownSeconds > 0) {
+                plugin.setCooldown(player, actionId, cached.cooldownSeconds);
+            }
+            boolean keepOpen = cached.keepOpen;
+            if (cached.requireTarget && cached.command.contains("{target}")) {
+                plugin.setAwaitingTarget(player, new TargetInfo(cached.command, cached.executor != null ? cached.executor : GUIManager.ExecutorType.PLAYER));
+                if (!keepOpen) player.closeInventory();
+                player.sendMessage(ChatColor.GREEN + "Please enter the target player's name in chat. Type 'cancel' to abort.");
+            } else {
+                if (!keepOpen) player.closeInventory();
+                executeCommand(player, cached.command, cached.executor != null ? cached.executor : GUIManager.ExecutorType.PLAYER, null);
+            }
+            return;
+        }
+
+        if (!item.hasItemMeta()) return;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
@@ -38,7 +72,7 @@ public class ActionExecutor {
         NamespacedKey executorKey = ActionKeyUtil.getExecutorKey(clickType);
         NamespacedKey keepOpenKey = ActionKeyUtil.getKeepOpenKey(clickType);
 
-        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, keepOpenKey);
+        executePdcPath(player, pdc, item, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, keepOpenKey);
     }
 
     public void execute(Player player, ItemStack item, ActionKeyUtil.KeyAction keyAction) {
@@ -60,10 +94,16 @@ public class ActionExecutor {
         NamespacedKey cooldownKey = ActionKeyUtil.getCooldownKey(keyAction);
         NamespacedKey executorKey = ActionKeyUtil.getExecutorKey(keyAction);
 
-        execute(player, pdc, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, null);
+        executePdcPath(player, pdc, item, actionId, commandKey, permKey, moneyCostKey, itemCostKey, cooldownKey, executorKey, null);
     }
 
-    private void execute(Player player, PersistentDataContainer pdc, String actionId, NamespacedKey commandKey, NamespacedKey permKey, NamespacedKey moneyCostKey, NamespacedKey itemCostKey, NamespacedKey cooldownKey, NamespacedKey executorKey, NamespacedKey keepOpenKey) {
+    private void executePdcPath(Player player,
+                                PersistentDataContainer pdc, ItemStack item,
+                                String actionId,
+                                NamespacedKey commandKey, NamespacedKey permKey,
+                                NamespacedKey moneyCostKey, NamespacedKey itemCostKey,
+                                NamespacedKey cooldownKey, NamespacedKey executorKey,
+                                NamespacedKey keepOpenKey) {
         long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
         if (remainingCooldown > 0) {
             player.sendMessage(ChatColor.RED + "You must wait " + String.format("%.1f", remainingCooldown / 1000.0) + " more seconds.");
@@ -96,19 +136,17 @@ public class ActionExecutor {
 
         if (requireTarget != null && requireTarget == 1 && command.contains("{target}")) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, executor));
-            if(!keepOpen) player.closeInventory();
+            if (!keepOpen) player.closeInventory();
             player.sendMessage(ChatColor.GREEN + "Please enter the target player's name in chat. Type 'cancel' to abort.");
         } else {
-            if(!keepOpen) player.closeInventory();
+            if (!keepOpen) player.closeInventory();
             executeCommand(player, command, executor, null);
         }
     }
 
     public void executeCommand(Player player, String command, GUIManager.ExecutorType executor, String targetName) {
         String finalCommand = command.replace("%player%", player.getName());
-        if (targetName != null) {
-            finalCommand = finalCommand.replace("{target}", targetName);
-        }
+        if (targetName != null) finalCommand = finalCommand.replace("{target}", targetName);
 
         String commandToExecute = finalCommand;
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -122,9 +160,7 @@ public class ActionExecutor {
                         player.setOp(true);
                         player.performCommand(commandToExecute);
                     } finally {
-                        if (!wasOp) {
-                            player.setOp(false);
-                        }
+                        if (!wasOp) player.setOp(false);
                     }
                     break;
                 case PLAYER:
@@ -133,5 +169,21 @@ public class ActionExecutor {
                     break;
             }
         });
+    }
+
+    private String mapClickToKey(ClickType t) {
+        if (t.isShiftClick()) return t.isLeftClick() ? GuiItemMeta.SHIFT_LEFT : GuiItemMeta.SHIFT_RIGHT;
+        return t.isLeftClick() ? GuiItemMeta.LEFT : GuiItemMeta.RIGHT;
+    }
+
+    private String getNoPermMsgFromItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        ItemMeta m = item.getItemMeta();
+        if (m == null) return null;
+        return m.getPersistentDataContainer().get(GUIManager.KEY_PERMISSION_MESSAGE, PersistentDataType.STRING);
+    }
+
+    private PersistentDataContainer makeFakePdc(ItemStack item) {
+        return item != null && item.hasItemMeta() && item.getItemMeta() != null ? item.getItemMeta().getPersistentDataContainer() : null;
     }
 }

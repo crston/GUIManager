@@ -3,13 +3,16 @@ package com.gmail.bobason01;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -17,14 +20,14 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
+/**
+ * GUIManager
+ * Core with head texture support and async save
+ */
 public final class GUIManager extends JavaPlugin {
 
     private static GUIManager instance;
@@ -61,14 +64,14 @@ public final class GUIManager extends JavaPlugin {
         this.languageManager = new LanguageManager(this);
 
         if (!setupEconomy()) {
-            getLogger().warning("Vault not found! Money cost features will be disabled.");
+            getLogger().warning("Vault not found. Money cost features will be disabled.");
         }
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             this.placeholderApiEnabled = true;
-            getLogger().info("PlaceholderAPI found! Placeholders will be enabled.");
+            getLogger().info("PlaceholderAPI found. Placeholders enabled.");
         } else {
-            getLogger().info("PlaceholderAPI not found. Placeholders will not be parsed.");
+            getLogger().info("PlaceholderAPI not found. Placeholders disabled.");
         }
 
         initializeKeys();
@@ -89,10 +92,10 @@ public final class GUIManager extends JavaPlugin {
         Objects.requireNonNull(getCommand("gui")).setExecutor(guiCommand);
         Objects.requireNonNull(getCommand("gui")).setTabCompleter(guiCommand);
 
-        long autoSaveInterval = 20L * 60 * 5; // 5 minutes
+        long autoSaveInterval = 20L * 60 * 5;
         this.autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, this::saveGuis, autoSaveInterval, autoSaveInterval);
 
-        getLogger().info("GUIManager has been enabled.");
+        getLogger().info("GUIManager enabled.");
     }
 
     @Override
@@ -100,9 +103,10 @@ public final class GUIManager extends JavaPlugin {
         if (this.autoSaveTask != null && !this.autoSaveTask.isCancelled()) {
             this.autoSaveTask.cancel();
         }
-        getLogger().info("Saving all GUI data before disabling...");
-        saveGuis();
-        getLogger().info("GUIManager has been disabled.");
+        getLogger().info("Saving all GUI data before disable.");
+        saveGuisSync();
+        HeadCache.clear();
+        getLogger().info("GUIManager disabled.");
     }
 
     public static GUIManager getInstance() {
@@ -231,7 +235,6 @@ public final class GUIManager extends JavaPlugin {
                     if (meta.hasDisplayName()) {
                         meta.setDisplayName(PlaceholderAPI.setPlaceholders(player, meta.getDisplayName()));
                     }
-
                     if (meta.hasLore()) {
                         List<String> parsedLore = new ArrayList<>();
                         List<String> originalLore = meta.getLore();
@@ -339,19 +342,152 @@ public final class GUIManager extends JavaPlugin {
                     for (String slotStr : itemsSection.getKeys(false)) {
                         try {
                             int slot = Integer.parseInt(slotStr);
-                            ItemStack item = itemsSection.getItemStack(slotStr);
-                            if (item != null) gui.setItem(slot, item);
+                            ItemStack direct = itemsSection.getItemStack(slotStr);
+                            if (direct != null) {
+                                gui.setItem(slot, direct);
+                                continue;
+                            }
+                            ConfigurationSection spec = itemsSection.getConfigurationSection(slotStr);
+                            if (spec != null) {
+                                ItemStack built = buildItemFromSpec(spec);
+                                if (built != null) gui.setItem(slot, built);
+                            }
                         } catch (Exception itemEx) {
-                            getLogger().warning("Error loading item in slot '" + slotStr + "' for GUI '" + id + "': " + itemEx.getMessage());
+                            getLogger().warning("Error loading item in slot " + slotStr + " for GUI " + id + ": " + itemEx.getMessage());
                         }
                     }
                 }
                 addGui(id, gui);
             } catch (Exception guiEx) {
-                getLogger().log(Level.SEVERE, "Critical error loading GUI '" + id + "': " + guiEx.getMessage());
+                getLogger().log(Level.SEVERE, "Critical error loading GUI " + id + ": " + guiEx.getMessage());
             }
         }
         getLogger().info("Loaded " + guis.size() + " GUIs from files.");
+    }
+
+    private ItemStack buildItemFromSpec(ConfigurationSection spec) {
+        String materialField = spec.getString("material", "STONE");
+        String skullField = spec.getString("skull", null);
+
+        ItemStack item;
+
+        if (HeadUtils.isTextureMaterialString(materialField) || skullField != null) {
+            item = HeadUtils.createHeadBySpec(materialField, skullField);
+        } else {
+            Material mat = matchMaterial(materialField);
+            if (mat == null) mat = Material.STONE;
+            item = new ItemStack(mat);
+        }
+
+        int amount = Math.max(1, spec.getInt("amount", 1));
+        item.setAmount(amount);
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            String name = spec.getString("name", null);
+            if (name != null) meta.setDisplayName(color(name));
+
+            List<String> lore = spec.getStringList("lore");
+            if (lore != null && !lore.isEmpty()) {
+                List<String> colored = new ArrayList<>(lore.size());
+                for (String l : lore) colored.add(color(l));
+                meta.setLore(colored);
+            }
+
+            int cmd = spec.getInt("custom_model_data", spec.getInt("model", spec.getInt("model_data", -1)));
+            if (cmd >= 0) {
+                meta.setCustomModelData(cmd);
+            }
+
+            int damage = spec.getInt("damage", -1);
+            if (damage >= 0 && meta instanceof Damageable) {
+                try {
+                    ((Damageable) meta).setDamage(damage);
+                } catch (Throwable ignored) {}
+            }
+
+            boolean hideFlags = spec.getBoolean("hide_flags", false);
+            if (hideFlags) {
+                try {
+                    for (ItemFlag f : ItemFlag.values()) meta.addItemFlags(f);
+                } catch (Throwable ignored) {}
+            }
+
+            item.setItemMeta(meta);
+        }
+
+        applyPdcSpec(item, spec);
+
+        return item;
+    }
+
+    private void applyPdcSpec(ItemStack item, ConfigurationSection spec) {
+        if (item == null) return;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        if (spec.contains("actions.left.command")) {
+            meta.getPersistentDataContainer().set(KEY_COMMAND_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.left.command", ""));
+        }
+        if (spec.contains("actions.right.command")) {
+            meta.getPersistentDataContainer().set(KEY_COMMAND_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.right.command", ""));
+        }
+        if (spec.contains("actions.shift_left.command")) {
+            meta.getPersistentDataContainer().set(KEY_COMMAND_SHIFT_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.shift_left.command", ""));
+        }
+        if (spec.contains("actions.shift_right.command")) {
+            meta.getPersistentDataContainer().set(KEY_COMMAND_SHIFT_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.shift_right.command", ""));
+        }
+
+        if (spec.contains("actions.left.executor")) {
+            meta.getPersistentDataContainer().set(KEY_EXECUTOR_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.left.executor", "PLAYER"));
+        }
+        if (spec.contains("actions.right.executor")) {
+            meta.getPersistentDataContainer().set(KEY_EXECUTOR_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.right.executor", "PLAYER"));
+        }
+
+        if (spec.contains("cooldown.left")) {
+            meta.getPersistentDataContainer().set(KEY_COOLDOWN_LEFT, org.bukkit.persistence.PersistentDataType.DOUBLE, spec.getDouble("cooldown.left", 0.0));
+        }
+        if (spec.contains("cooldown.right")) {
+            meta.getPersistentDataContainer().set(KEY_COOLDOWN_RIGHT, org.bukkit.persistence.PersistentDataType.DOUBLE, spec.getDouble("cooldown.right", 0.0));
+        }
+
+        if (spec.contains("keep_open.left")) {
+            meta.getPersistentDataContainer().set(KEY_KEEP_OPEN_LEFT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("keep_open.left") ? 1 : 0));
+        }
+        if (spec.contains("keep_open.right")) {
+            meta.getPersistentDataContainer().set(KEY_KEEP_OPEN_RIGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("keep_open.right") ? 1 : 0));
+        }
+
+        if (spec.contains("perm.message")) {
+            meta.getPersistentDataContainer().set(KEY_PERMISSION_MESSAGE, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("perm.message", ""));
+        }
+
+        if (spec.contains("require_target")) {
+            meta.getPersistentDataContainer().set(KEY_REQUIRE_TARGET, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("require_target") ? 1 : 0));
+        }
+
+        if (meta.hasCustomModelData()) {
+            meta.getPersistentDataContainer().set(KEY_CUSTOM_MODEL_DATA, org.bukkit.persistence.PersistentDataType.INTEGER, meta.getCustomModelData());
+        }
+
+        item.setItemMeta(meta);
+    }
+
+    private Material matchMaterial(String name) {
+        if (name == null) return null;
+        String s = name.trim().toUpperCase(Locale.ROOT);
+        s = s.replace("MINECRAFT:", "");
+        try {
+            return Material.valueOf(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private String color(String s) {
+        return org.bukkit.ChatColor.translateAlternateColorCodes('&', s);
     }
 
     public void saveGui(String id) {
@@ -366,14 +502,32 @@ public final class GUIManager extends JavaPlugin {
         config.set("items", null);
         gui.getItems().forEach((slot, item) -> config.set("items." + slot, item));
 
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Could not save GUI to file: " + file.getName(), e);
-        }
+        AsyncSaver.enqueue(file, config);
     }
 
     public void saveGuis() {
         guis.keySet().forEach(this::saveGui);
+    }
+
+    private void saveGuisSync() {
+        for (String id : guis.keySet()) {
+            GUI gui = guis.get(id);
+            if (gui == null) continue;
+            File file = new File(guisFolder, id.toLowerCase() + ".yml");
+            FileConfiguration config = new YamlConfiguration();
+            config.set("title", gui.getTitle());
+            config.set("size", gui.getSize());
+            config.set("items", null);
+            gui.getItems().forEach((slot, item) -> config.set("items." + slot, item));
+            try {
+                config.save(file);
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Could not save GUI to file " + file.getName(), e);
+            }
+        }
+    }
+
+    public GuiItemMeta.Variant getCachedVariant(String guiId, int slot, String key) {
+        return null;
     }
 }

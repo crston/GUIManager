@@ -37,6 +37,11 @@
       <option name="url" value="https://mvnrepository.com/artifact/net.milkbowl.vault/VaultAPI/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="minecraft-repo" />
+      <option name="name" value="minecraft-repo" />
+      <option name="url" value="https://libraries.minecraft.net/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="vault" />
       <option name="name" value="vault" />
       <option name="url" value="https://mvnrepository.com/artifact/net.milkbowl.vault/Vault" />
