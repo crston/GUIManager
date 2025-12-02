@@ -75,7 +75,6 @@ public class GUIListener implements Listener {
             ItemMeta meta = targetItem.getItemMeta();
             if (meta == null) return;
 
-            // 현재 코스트 창에 있는 아이템 수집
             List<ItemStack> costs = new ArrayList<>();
             for (ItemStack item : event.getInventory().getContents()) {
                 if (item != null && !item.getType().isAir()) {
@@ -87,11 +86,9 @@ public class GUIListener implements Listener {
 
             try {
                 if (costs.isEmpty()) {
-                    // 비어있다면 데이터 완전 삭제 (잔상 제거)
                     meta.getPersistentDataContainer().remove(key);
                     player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set") + " (Cleared)");
                 } else {
-                    // 아이템이 있다면 저장
                     String serialized = ItemSerialization.itemStackArrayToBase64(costs.toArray(new ItemStack[0]));
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, serialized);
                     player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set"));
@@ -99,11 +96,9 @@ public class GUIListener implements Listener {
 
                 targetItem.setItemMeta(meta);
 
-                // 1. GUI 데이터 업데이트
                 GUI gui = plugin.getGui(session.getGuiName());
                 if (gui != null) gui.setItem(session.getSlot(), targetItem);
 
-                // 2. [중요] 세션 아이템도 최신 상태로 갱신 (즉시 반영을 위해)
                 session.setItem(targetItem);
 
             } catch (Exception e) {
@@ -112,10 +107,10 @@ public class GUIListener implements Listener {
             }
 
             plugin.endCostSession(player);
-            // 3. 갱신된 세션으로 에디터 다시 열기
             Bukkit.getScheduler().runTask(plugin, () -> ItemEditor.open(player, session));
 
         } else if (title.startsWith(ItemEditor.TITLE_PREFIX)) {
+            // 채팅 세션이나 코스트 설정 중이면 자동 저장을 스킵 (데이터 덮어쓰기 방지)
             if (plugin.hasChatSession(player) || plugin.isSettingCost(player)) {
                 return;
             }
@@ -171,6 +166,8 @@ public class GUIListener implements Listener {
 
         String title = event.getView().getTitle();
         Inventory editorInv = event.getView().getTopInventory();
+
+        // 현재 작업 중인 아이템 (Slot 4)
         ItemStack currentIcon = editorInv.getItem(4);
         if (currentIcon == null) return;
 
@@ -188,6 +185,8 @@ public class GUIListener implements Listener {
         int slot = event.getSlot();
         String guiName = title.replace(ItemEditor.TITLE_PREFIX, "").split(" ")[0];
         int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
+
+        // 세션 생성 시 현재 눈에 보이는 최신 아이템(Clone)을 기반으로 생성
         EditSession session = new EditSession(guiName, itemSlot, currentIcon.clone());
 
         ItemStack pageArrow = editorInv.getItem(53);
@@ -198,9 +197,16 @@ public class GUIListener implements Listener {
             }
         }
 
+        // 저장 및 나가기 (Slot 8) 처리 수정
         if (slot == 8) {
             GUI gui = plugin.getGui(session.getGuiName());
             if (gui != null) {
+                // 1. 현재 에디터 상태를 GUI 객체에 먼저 저장
+                gui.setItem(session.getSlot(), currentIcon);
+                plugin.saveGui(session.getGuiName());
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.item_saved"));
+
+                // 2. 에디트 모드 전환 및 메인 GUI 열기
                 plugin.setEditMode(player, session.getGuiName());
                 player.openInventory(gui.getInventory());
             }
@@ -293,14 +299,18 @@ public class GUIListener implements Listener {
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null) return;
         int slot = event.getSlot();
+
         if (clickedItem.getType() == Material.WRITABLE_BOOK) {
+            // [FIX] 로어 추가 시 EditType 설정 및 채팅 세션 시작
             session.setEditType(EditSession.EditType.LORE_ADD);
             plugin.startChatSession(player, session);
             player.closeInventory();
             sendChatPrompt(player, EditSession.EditType.LORE_ADD);
+
         } else if (clickedItem.getType() == Material.PAPER) {
             int lineIndex = (session.getLorePage() * 7) + (slot - 46);
             session.setLoreLineEditIndex(lineIndex);
+
             if (event.isLeftClick()) {
                 session.setEditType(EditSession.EditType.LORE_EDIT);
                 plugin.startChatSession(player, session);
