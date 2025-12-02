@@ -23,6 +23,9 @@ public final class ItemEditor {
 
     public static final String TITLE_PREFIX = "§7[Item Editor] §6";
     public static final String COST_TITLE_PREFIX = "§7[Item Cost Editor] §e";
+    // 페이지 저장을 위한 키 추가
+    public static final NamespacedKey KEY_PAGE = new NamespacedKey(GUIManager.getInstance(), "editor_page");
+
     private static final int LORE_SLOTS_PER_PAGE = 7;
     private static final ItemStack SEPARATOR_PANE;
 
@@ -122,6 +125,10 @@ public final class ItemEditor {
         loreList.add("§bLeft-Click for Next Page");
         loreList.add("§dShift-Click for Previous Page");
         meta.setLore(loreList);
+
+        // 현재 페이지 정보를 화살표의 PersistentDataContainer에 저장
+        meta.getPersistentDataContainer().set(KEY_PAGE, PersistentDataType.INTEGER, page);
+
         pageButton.setItemMeta(meta);
         inv.setItem(53, pageButton);
     }

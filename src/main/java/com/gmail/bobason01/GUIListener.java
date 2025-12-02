@@ -172,6 +172,15 @@ public class GUIListener implements Listener {
         int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
         EditSession session = new EditSession(guiName, itemSlot, currentIcon.clone());
 
+        // [수정] 현재 에디터 창의 화살표(53번)에서 페이지 정보를 읽어와 세션에 복구
+        ItemStack pageArrow = editorInv.getItem(53);
+        if (pageArrow != null && pageArrow.hasItemMeta()) {
+            Integer page = pageArrow.getItemMeta().getPersistentDataContainer().get(ItemEditor.KEY_PAGE, PersistentDataType.INTEGER);
+            if (page != null) {
+                session.setLorePage(page);
+            }
+        }
+
         if (slot == 8) {
             GUI gui = plugin.getGui(session.getGuiName());
             if (gui != null) {
@@ -220,7 +229,7 @@ public class GUIListener implements Listener {
             } else if (type.name().contains("MONEY_COST") && GUIManager.econ == null) {
                 player.sendMessage(ChatColor.RED + "This feature requires the Vault plugin.");
             } else if (type == EditSession.EditType.REQUIRE_TARGET || type.name().startsWith("KEEP_OPEN")) {
-                toggleByte(session.getItem(), ActionKeyUtil.getKeyFromType(type));
+                toggleByte(session.getItem(), ActionKeyUtil.getKeyFromType(type), player);
                 ItemEditor.open(player, session);
             } else {
                 plugin.startChatSession(player, session);
@@ -309,7 +318,7 @@ public class GUIListener implements Listener {
             String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
             if (serializedCosts != null && !serializedCosts.isEmpty()) {
                 try {
-                    removeItems(player.getInventory(), ItemSerialization.itemStackArrayFromBase64(serializedCosts));
+                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts));
                 } catch (Exception ignored) {}
             }
         }
@@ -415,16 +424,24 @@ public class GUIListener implements Listener {
         pdc.set(key, PersistentDataType.STRING, nextExecutor.name());
         session.getItem().setItemMeta(meta);
 
+        player.getOpenInventory().getTopInventory().setItem(4, session.getItem());
+
         ItemEditor.open(player, session);
     }
 
-    private void toggleByte(ItemStack item, NamespacedKey key) {
+    private void toggleByte(ItemStack item, NamespacedKey key, Player player) {
         if (item == null || !item.hasItemMeta() || key == null) return;
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = Objects.requireNonNull(meta).getPersistentDataContainer();
         byte currentState = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
         pdc.set(key, PersistentDataType.BYTE, (byte) (currentState == 0 ? 1 : 0));
         item.setItemMeta(meta);
+
+        if (player != null && player.getOpenInventory().getTopInventory() != null) {
+            if (player.getOpenInventory().getTitle().startsWith(ItemEditor.TITLE_PREFIX)) {
+                player.getOpenInventory().getTopInventory().setItem(4, item);
+            }
+        }
     }
 
     private void handleLoreRemove(Player player, EditSession session) {
@@ -438,6 +455,8 @@ public class GUIListener implements Listener {
                 meta.setLore(lore.isEmpty() ? null : lore);
                 session.getItem().setItemMeta(meta);
                 player.sendMessage(ChatColor.GREEN + "Lore line " + (lineIndex + 1) + " removed.");
+
+                player.getOpenInventory().getTopInventory().setItem(4, session.getItem());
             }
         }
         ItemEditor.open(player, session);
@@ -488,16 +507,45 @@ public class GUIListener implements Listener {
     private boolean hasItems(Inventory inventory, ItemStack[] requiredItems) {
         for (ItemStack requiredItem : requiredItems) {
             if (requiredItem == null || requiredItem.getType() == Material.AIR) continue;
-            if (!inventory.containsAtLeast(requiredItem, requiredItem.getAmount())) {
+
+            if (!containsAtLeastStrict(inventory, requiredItem, requiredItem.getAmount())) {
                 return false;
             }
         }
         return true;
     }
 
-    private void removeItems(Inventory inventory, ItemStack[] itemsToRemove) {
-        if (itemsToRemove == null) return;
-        inventory.removeItem(itemsToRemove);
+    private boolean containsAtLeastStrict(Inventory inventory, ItemStack costItem, int amountNeeded) {
+        int found = 0;
+        for (ItemStack invItem : inventory.getContents()) {
+            if (invItem == null || invItem.getType() != costItem.getType()) continue;
+
+            boolean isMatch = true;
+            if (costItem.hasItemMeta()) {
+                if (!invItem.hasItemMeta()) {
+                    isMatch = false;
+                } else {
+                    ItemMeta costMeta = costItem.getItemMeta();
+                    ItemMeta invMeta = invItem.getItemMeta();
+
+                    if (costMeta.hasDisplayName()) {
+                        if (!invMeta.hasDisplayName() || !invMeta.getDisplayName().equals(costMeta.getDisplayName())) {
+                            isMatch = false;
+                        }
+                    }
+                    if (costMeta.hasCustomModelData()) {
+                        if (!invMeta.hasCustomModelData() || invMeta.getCustomModelData() != costMeta.getCustomModelData()) {
+                            isMatch = false;
+                        }
+                    }
+                }
+            }
+
+            if (isMatch) {
+                found += invItem.getAmount();
+            }
+        }
+        return found >= amountNeeded;
     }
 
     public static void removeStaticItems(Player player, ItemStack[] items) {
@@ -508,15 +556,29 @@ public class GUIListener implements Listener {
 
             for (ItemStack invItem : player.getInventory().getContents()) {
                 if (invItem == null || invItem.getType() != costItem.getType()) continue;
-                if (invItem.hasItemMeta() && costItem.hasItemMeta()) {
-                    ItemMeta invMeta = invItem.getItemMeta();
-                    ItemMeta costMeta = costItem.getItemMeta();
-                    // 이름/모델데이터가 다르면 다른 아이템으로 취급
-                    if (invMeta.hasDisplayName() && costMeta.hasDisplayName()
-                            && !invMeta.getDisplayName().equals(costMeta.getDisplayName())) continue;
-                    if (invMeta.hasCustomModelData() && costMeta.hasCustomModelData()
-                            && invMeta.getCustomModelData() != costMeta.getCustomModelData()) continue;
+
+                boolean isMatch = true;
+                if (costItem.hasItemMeta()) {
+                    if (!invItem.hasItemMeta()) {
+                        isMatch = false;
+                    } else {
+                        ItemMeta invMeta = invItem.getItemMeta();
+                        ItemMeta costMeta = costItem.getItemMeta();
+
+                        if (costMeta.hasDisplayName()) {
+                            if (!invMeta.hasDisplayName() || !invMeta.getDisplayName().equals(costMeta.getDisplayName())) {
+                                isMatch = false;
+                            }
+                        }
+                        if (costMeta.hasCustomModelData()) {
+                            if (!invMeta.hasCustomModelData() || invMeta.getCustomModelData() != costMeta.getCustomModelData()) {
+                                isMatch = false;
+                            }
+                        }
+                    }
                 }
+
+                if (!isMatch) continue;
 
                 int invAmt = invItem.getAmount();
                 if (invAmt >= remaining) {
@@ -529,7 +591,6 @@ public class GUIListener implements Listener {
                 }
             }
 
-            // 만약 제거해야 할 수량이 남았다면 제거 불가한 아이템이 존재한 것
             if (remaining > 0) {
                 player.sendMessage(ChatColor.RED + "일부 아이템을 제거할 수 없습니다.");
             }
@@ -537,7 +598,6 @@ public class GUIListener implements Listener {
         player.updateInventory();
     }
 
-    // 확장 버전 (CostBridge용)
     public boolean checkAndTakeCosts(Player player,
                                      PersistentDataContainer pdc,
                                      NamespacedKey moneyCostKey,
