@@ -26,7 +26,7 @@ import java.util.logging.Level;
 
 /**
  * GUIManager
- * Core with head texture support and async save
+ * Core plugin class handling GUI lifecycle, sessions, economy, and configurations.
  */
 public final class GUIManager extends JavaPlugin {
 
@@ -38,20 +38,90 @@ public final class GUIManager extends JavaPlugin {
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_DAMAGE, KEY_ITEM_MODEL_ID;
-    public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
-    public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT, KEY_KEEP_OPEN_RIGHT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT, KEY_KEEP_OPEN_SHIFT_RIGHT;
-    public static NamespacedKey KEY_COMMAND_F, KEY_PERMISSION_F, KEY_COST_F, KEY_MONEY_COST_F, KEY_COOLDOWN_F, KEY_EXECUTOR_F;
-    public static NamespacedKey KEY_COMMAND_SHIFT_F, KEY_PERMISSION_SHIFT_F, KEY_COST_SHIFT_F, KEY_MONEY_COST_SHIFT_F, KEY_COOLDOWN_SHIFT_F, KEY_EXECUTOR_SHIFT_F;
-    public static NamespacedKey KEY_COMMAND_Q, KEY_PERMISSION_Q, KEY_COST_Q, KEY_MONEY_COST_Q, KEY_COOLDOWN_Q, KEY_EXECUTOR_Q;
-    public static NamespacedKey KEY_COMMAND_SHIFT_Q, KEY_PERMISSION_SHIFT_Q, KEY_COST_SHIFT_Q, KEY_MONEY_COST_SHIFT_Q, KEY_COOLDOWN_SHIFT_Q, KEY_EXECUTOR_SHIFT_Q;
+    // --- Namespaced Keys (Unique IDs for PersistentDataContainer) ---
 
+    // General Item Settings
+    public static NamespacedKey KEY_PERMISSION_MESSAGE;
+    public static NamespacedKey KEY_REQUIRE_TARGET;
+    public static NamespacedKey KEY_CUSTOM_MODEL_DATA;
+    public static NamespacedKey KEY_ITEM_DAMAGE;
+    public static NamespacedKey KEY_ITEM_MODEL_ID;
+
+    // Left Click Keys
+    public static NamespacedKey KEY_COMMAND_LEFT;
+    public static NamespacedKey KEY_PERMISSION_LEFT;
+    public static NamespacedKey KEY_COST_LEFT;
+    public static NamespacedKey KEY_MONEY_COST_LEFT;
+    public static NamespacedKey KEY_COOLDOWN_LEFT;
+    public static NamespacedKey KEY_EXECUTOR_LEFT;
+    public static NamespacedKey KEY_KEEP_OPEN_LEFT;
+
+    // Shift + Left Click Keys
+    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_LEFT;
+    public static NamespacedKey KEY_COST_SHIFT_LEFT;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_LEFT;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_LEFT;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_LEFT;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_LEFT;
+
+    // Right Click Keys
+    public static NamespacedKey KEY_COMMAND_RIGHT;
+    public static NamespacedKey KEY_PERMISSION_RIGHT;
+    public static NamespacedKey KEY_COST_RIGHT;
+    public static NamespacedKey KEY_MONEY_COST_RIGHT;
+    public static NamespacedKey KEY_COOLDOWN_RIGHT;
+    public static NamespacedKey KEY_EXECUTOR_RIGHT;
+    public static NamespacedKey KEY_KEEP_OPEN_RIGHT;
+
+    // Shift + Right Click Keys
+    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COST_SHIFT_RIGHT;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_RIGHT;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_RIGHT;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_RIGHT;
+
+    // F (Swap Hand) Keys
+    public static NamespacedKey KEY_COMMAND_F;
+    public static NamespacedKey KEY_PERMISSION_F;
+    public static NamespacedKey KEY_COST_F;
+    public static NamespacedKey KEY_MONEY_COST_F;
+    public static NamespacedKey KEY_COOLDOWN_F;
+    public static NamespacedKey KEY_EXECUTOR_F;
+
+    // Shift + F Keys
+    public static NamespacedKey KEY_COMMAND_SHIFT_F;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_F;
+    public static NamespacedKey KEY_COST_SHIFT_F;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_F;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_F;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_F;
+
+    // Q (Drop) Keys
+    public static NamespacedKey KEY_COMMAND_Q;
+    public static NamespacedKey KEY_PERMISSION_Q;
+    public static NamespacedKey KEY_COST_Q;
+    public static NamespacedKey KEY_MONEY_COST_Q;
+    public static NamespacedKey KEY_COOLDOWN_Q;
+    public static NamespacedKey KEY_EXECUTOR_Q;
+
+    // Shift + Q Keys
+    public static NamespacedKey KEY_COMMAND_SHIFT_Q;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_Q;
+    public static NamespacedKey KEY_COST_SHIFT_Q;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_Q;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_Q;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_Q;
+
+
+    // --- Data Maps ---
     private final Map<String, GUI> guis = new ConcurrentHashMap<>();
     private final Map<String, String> titleToGuiIdCache = new ConcurrentHashMap<>();
     private File guisFolder;
 
+    // Session Maps
     private final Map<UUID, String> playersInEditMode = new ConcurrentHashMap<>();
     private final Map<UUID, EditSession> chatEditSessions = new ConcurrentHashMap<>();
     private final Map<UUID, EditSession> playersSettingCost = new ConcurrentHashMap<>();
@@ -63,10 +133,12 @@ public final class GUIManager extends JavaPlugin {
         instance = this;
         this.languageManager = new LanguageManager(this);
 
+        // Economy Setup
         if (!setupEconomy()) {
             getLogger().warning("Vault not found. Money cost features will be disabled.");
         }
 
+        // PlaceholderAPI Setup
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             this.placeholderApiEnabled = true;
             getLogger().info("PlaceholderAPI found. Placeholders enabled.");
@@ -74,24 +146,30 @@ public final class GUIManager extends JavaPlugin {
             getLogger().info("PlaceholderAPI not found. Placeholders disabled.");
         }
 
+        // Initialize Keys
         initializeKeys();
 
+        // GUI Folder Setup
         this.guisFolder = new File(getDataFolder(), "guis");
         if (!this.guisFolder.exists()) {
             this.guisFolder.mkdirs();
         }
 
+        // Load GUIs
         loadGuis();
 
+        // Register Listeners
         GUIListener guiListener = new GUIListener(this);
         Bukkit.getPluginManager().registerEvents(guiListener, this);
         Bukkit.getPluginManager().registerEvents(new ChatListener(this, guiListener), this);
         Bukkit.getPluginManager().registerEvents(new KeybindListener(this, guiListener), this);
 
+        // Register Commands
         GUICommand guiCommand = new GUICommand(this);
         Objects.requireNonNull(getCommand("gui")).setExecutor(guiCommand);
         Objects.requireNonNull(getCommand("gui")).setTabCompleter(guiCommand);
 
+        // Auto Save Task (Every 5 minutes)
         long autoSaveInterval = 20L * 60 * 5;
         this.autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, this::saveGuis, autoSaveInterval, autoSaveInterval);
 
@@ -130,12 +208,14 @@ public final class GUIManager extends JavaPlugin {
     }
 
     private void initializeKeys() {
+        // General
         KEY_PERMISSION_MESSAGE = new NamespacedKey(this, "perm_msg");
         KEY_REQUIRE_TARGET = new NamespacedKey(this, "req_target");
         KEY_CUSTOM_MODEL_DATA = new NamespacedKey(this, "model_data");
         KEY_ITEM_DAMAGE = new NamespacedKey(this, "item_damage");
         KEY_ITEM_MODEL_ID = new NamespacedKey(this, "item_model_id");
 
+        // Left Click
         KEY_COMMAND_LEFT = new NamespacedKey(this, "cmd_left");
         KEY_PERMISSION_LEFT = new NamespacedKey(this, "perm_left");
         KEY_COST_LEFT = new NamespacedKey(this, "cost_left");
@@ -144,6 +224,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_EXECUTOR_LEFT = new NamespacedKey(this, "executor_left");
         KEY_KEEP_OPEN_LEFT = new NamespacedKey(this, "keep_open_left");
 
+        // Shift + Left Click
         KEY_COMMAND_SHIFT_LEFT = new NamespacedKey(this, "cmd_s_left");
         KEY_PERMISSION_SHIFT_LEFT = new NamespacedKey(this, "perm_s_left");
         KEY_COST_SHIFT_LEFT = new NamespacedKey(this, "cost_s_left");
@@ -152,6 +233,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_EXECUTOR_SHIFT_LEFT = new NamespacedKey(this, "executor_s_left");
         KEY_KEEP_OPEN_SHIFT_LEFT = new NamespacedKey(this, "keep_open_s_left");
 
+        // Right Click
         KEY_COMMAND_RIGHT = new NamespacedKey(this, "cmd_right");
         KEY_PERMISSION_RIGHT = new NamespacedKey(this, "perm_right");
         KEY_COST_RIGHT = new NamespacedKey(this, "cost_right");
@@ -160,6 +242,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_EXECUTOR_RIGHT = new NamespacedKey(this, "executor_right");
         KEY_KEEP_OPEN_RIGHT = new NamespacedKey(this, "keep_open_right");
 
+        // Shift + Right Click
         KEY_COMMAND_SHIFT_RIGHT = new NamespacedKey(this, "cmd_s_right");
         KEY_PERMISSION_SHIFT_RIGHT = new NamespacedKey(this, "perm_s_right");
         KEY_COST_SHIFT_RIGHT = new NamespacedKey(this, "cost_s_right");
@@ -168,6 +251,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_EXECUTOR_SHIFT_RIGHT = new NamespacedKey(this, "executor_s_right");
         KEY_KEEP_OPEN_SHIFT_RIGHT = new NamespacedKey(this, "keep_open_s_right");
 
+        // F (Swap Hand)
         KEY_COMMAND_F = new NamespacedKey(this, "cmd_f");
         KEY_PERMISSION_F = new NamespacedKey(this, "perm_f");
         KEY_COST_F = new NamespacedKey(this, "cost_f");
@@ -175,6 +259,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_COOLDOWN_F = new NamespacedKey(this, "cooldown_f");
         KEY_EXECUTOR_F = new NamespacedKey(this, "executor_f");
 
+        // Shift + F
         KEY_COMMAND_SHIFT_F = new NamespacedKey(this, "cmd_s_f");
         KEY_PERMISSION_SHIFT_F = new NamespacedKey(this, "perm_s_f");
         KEY_COST_SHIFT_F = new NamespacedKey(this, "cost_s_f");
@@ -182,6 +267,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_COOLDOWN_SHIFT_F = new NamespacedKey(this, "cooldown_s_f");
         KEY_EXECUTOR_SHIFT_F = new NamespacedKey(this, "executor_s_f");
 
+        // Q (Drop)
         KEY_COMMAND_Q = new NamespacedKey(this, "cmd_q");
         KEY_PERMISSION_Q = new NamespacedKey(this, "perm_q");
         KEY_COST_Q = new NamespacedKey(this, "cost_q");
@@ -189,6 +275,7 @@ public final class GUIManager extends JavaPlugin {
         KEY_COOLDOWN_Q = new NamespacedKey(this, "cooldown_q");
         KEY_EXECUTOR_Q = new NamespacedKey(this, "executor_q");
 
+        // Shift + Q
         KEY_COMMAND_SHIFT_Q = new NamespacedKey(this, "cmd_s_q");
         KEY_PERMISSION_SHIFT_Q = new NamespacedKey(this, "perm_s_q");
         KEY_COST_SHIFT_Q = new NamespacedKey(this, "cost_s_q");
@@ -254,23 +341,28 @@ public final class GUIManager extends JavaPlugin {
         return playerInv;
     }
 
+    // --- Session & Mode Management ---
     public boolean isInEditMode(Player p) { return playersInEditMode.containsKey(p.getUniqueId()); }
     public void setEditMode(Player p, String guiName) { playersInEditMode.put(p.getUniqueId(), guiName); }
     public String getEditingGuiName(Player p) { return playersInEditMode.get(p.getUniqueId()); }
     public void removeEditMode(Player p) { playersInEditMode.remove(p.getUniqueId()); }
+
     public boolean hasChatSession(Player p) { return chatEditSessions.containsKey(p.getUniqueId()); }
     public EditSession getChatSession(Player p) { return chatEditSessions.get(p.getUniqueId()); }
     public void startChatSession(Player p, EditSession s) { chatEditSessions.put(p.getUniqueId(), s); }
     public void endChatSession(Player p) { chatEditSessions.remove(p.getUniqueId()); }
+
     public boolean isSettingCost(Player p) { return playersSettingCost.containsKey(p.getUniqueId()); }
     public EditSession getCostSession(Player p) { return playersSettingCost.get(p.getUniqueId()); }
     public void startCostSession(Player p, EditSession s) { playersSettingCost.put(p.getUniqueId(), s); }
     public void endCostSession(Player p) { playersSettingCost.remove(p.getUniqueId()); }
+
     public boolean isAwaitingTarget(Player p) { return playersAwaitingTarget.containsKey(p.getUniqueId()); }
     public TargetInfo getAwaitingTargetInfo(Player p) { return playersAwaitingTarget.get(p.getUniqueId()); }
     public void setAwaitingTarget(Player p, TargetInfo info) { playersAwaitingTarget.put(p.getUniqueId(), info); }
     public void removeAwaitingTarget(Player p) { playersAwaitingTarget.remove(p.getUniqueId()); }
 
+    // --- GUI Management ---
     public Map<String, GUI> getGuis() { return guis; }
     public GUI getGui(String id) { return guis.get(id.toLowerCase()); }
     public String getGuiIdByTitle(String title) { return titleToGuiIdCache.get(title); }
@@ -278,6 +370,13 @@ public final class GUIManager extends JavaPlugin {
     public void addGui(String id, GUI gui) {
         guis.put(id.toLowerCase(), gui);
         titleToGuiIdCache.put(gui.getTitle(), id.toLowerCase());
+    }
+
+    public void createGui(String id, int rows, String title) {
+        GUI gui = new GUI(title, rows * 9);
+        gui.setId(id);
+        addGui(id, gui);
+        saveGui(id);
     }
 
     public void updateGuiTitle(String id, String newTitle) {
@@ -293,6 +392,7 @@ public final class GUIManager extends JavaPlugin {
         GUI gui = guis.remove(oldId.toLowerCase());
         if (gui != null) {
             guis.put(newId.toLowerCase(), gui);
+            gui.setId(newId); // Ensure GUI object knows its new ID
             if (titleToGuiIdCache.containsKey(gui.getTitle())) {
                 titleToGuiIdCache.put(gui.getTitle(), newId.toLowerCase());
             }
@@ -321,6 +421,8 @@ public final class GUIManager extends JavaPlugin {
         }
     }
 
+    // --- Loading & Saving ---
+
     public void loadGuis() {
         guis.clear();
         titleToGuiIdCache.clear();
@@ -337,6 +439,8 @@ public final class GUIManager extends JavaPlugin {
                 String title = config.getString("title", "GUI");
                 int size = config.getInt("size", 27);
                 GUI gui = new GUI(title, size);
+                gui.setId(id); // Set ID
+
                 ConfigurationSection itemsSection = config.getConfigurationSection("items");
                 if (itemsSection != null) {
                     for (String slotStr : itemsSection.getKeys(false)) {
@@ -417,7 +521,6 @@ public final class GUIManager extends JavaPlugin {
         }
 
         applyPdcSpec(item, spec);
-
         return item;
     }
 
@@ -426,53 +529,63 @@ public final class GUIManager extends JavaPlugin {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
 
-        if (spec.contains("actions.left.command")) {
-            meta.getPersistentDataContainer().set(KEY_COMMAND_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.left.command", ""));
-        }
-        if (spec.contains("actions.right.command")) {
-            meta.getPersistentDataContainer().set(KEY_COMMAND_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.right.command", ""));
-        }
-        if (spec.contains("actions.shift_left.command")) {
-            meta.getPersistentDataContainer().set(KEY_COMMAND_SHIFT_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.shift_left.command", ""));
-        }
-        if (spec.contains("actions.shift_right.command")) {
-            meta.getPersistentDataContainer().set(KEY_COMMAND_SHIFT_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.shift_right.command", ""));
-        }
+        // Apply Actions
+        applyString(meta, KEY_COMMAND_LEFT, spec.getString("actions.left.command"));
+        applyString(meta, KEY_COMMAND_RIGHT, spec.getString("actions.right.command"));
+        applyString(meta, KEY_COMMAND_SHIFT_LEFT, spec.getString("actions.shift_left.command"));
+        applyString(meta, KEY_COMMAND_SHIFT_RIGHT, spec.getString("actions.shift_right.command"));
+        applyString(meta, KEY_COMMAND_F, spec.getString("actions.f.command"));
+        applyString(meta, KEY_COMMAND_SHIFT_F, spec.getString("actions.shift_f.command"));
+        applyString(meta, KEY_COMMAND_Q, spec.getString("actions.q.command"));
+        applyString(meta, KEY_COMMAND_SHIFT_Q, spec.getString("actions.shift_q.command"));
 
-        if (spec.contains("actions.left.executor")) {
-            meta.getPersistentDataContainer().set(KEY_EXECUTOR_LEFT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.left.executor", "PLAYER"));
-        }
-        if (spec.contains("actions.right.executor")) {
-            meta.getPersistentDataContainer().set(KEY_EXECUTOR_RIGHT, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("actions.right.executor", "PLAYER"));
-        }
+        // Apply Executors
+        applyString(meta, KEY_EXECUTOR_LEFT, spec.getString("actions.left.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_RIGHT, spec.getString("actions.right.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_SHIFT_LEFT, spec.getString("actions.shift_left.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_SHIFT_RIGHT, spec.getString("actions.shift_right.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_F, spec.getString("actions.f.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_SHIFT_F, spec.getString("actions.shift_f.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_Q, spec.getString("actions.q.executor", "PLAYER"));
+        applyString(meta, KEY_EXECUTOR_SHIFT_Q, spec.getString("actions.shift_q.executor", "PLAYER"));
 
-        if (spec.contains("cooldown.left")) {
-            meta.getPersistentDataContainer().set(KEY_COOLDOWN_LEFT, org.bukkit.persistence.PersistentDataType.DOUBLE, spec.getDouble("cooldown.left", 0.0));
-        }
-        if (spec.contains("cooldown.right")) {
-            meta.getPersistentDataContainer().set(KEY_COOLDOWN_RIGHT, org.bukkit.persistence.PersistentDataType.DOUBLE, spec.getDouble("cooldown.right", 0.0));
-        }
+        // Apply Cooldowns
+        applyDouble(meta, KEY_COOLDOWN_LEFT, spec.getDouble("cooldown.left", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_RIGHT, spec.getDouble("cooldown.right", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_SHIFT_LEFT, spec.getDouble("cooldown.shift_left", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_SHIFT_RIGHT, spec.getDouble("cooldown.shift_right", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_F, spec.getDouble("cooldown.f", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_SHIFT_F, spec.getDouble("cooldown.shift_f", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_Q, spec.getDouble("cooldown.q", 0.0));
+        applyDouble(meta, KEY_COOLDOWN_SHIFT_Q, spec.getDouble("cooldown.shift_q", 0.0));
 
-        if (spec.contains("keep_open.left")) {
-            meta.getPersistentDataContainer().set(KEY_KEEP_OPEN_LEFT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("keep_open.left") ? 1 : 0));
-        }
-        if (spec.contains("keep_open.right")) {
-            meta.getPersistentDataContainer().set(KEY_KEEP_OPEN_RIGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("keep_open.right") ? 1 : 0));
-        }
+        // Apply Keep Open
+        applyBoolean(meta, KEY_KEEP_OPEN_LEFT, spec.getBoolean("keep_open.left", false));
+        applyBoolean(meta, KEY_KEEP_OPEN_RIGHT, spec.getBoolean("keep_open.right", false));
+        applyBoolean(meta, KEY_KEEP_OPEN_SHIFT_LEFT, spec.getBoolean("keep_open.shift_left", false));
+        applyBoolean(meta, KEY_KEEP_OPEN_SHIFT_RIGHT, spec.getBoolean("keep_open.shift_right", false));
 
-        if (spec.contains("perm.message")) {
-            meta.getPersistentDataContainer().set(KEY_PERMISSION_MESSAGE, org.bukkit.persistence.PersistentDataType.STRING, spec.getString("perm.message", ""));
-        }
-
-        if (spec.contains("require_target")) {
-            meta.getPersistentDataContainer().set(KEY_REQUIRE_TARGET, org.bukkit.persistence.PersistentDataType.BYTE, (byte) (spec.getBoolean("require_target") ? 1 : 0));
-        }
+        // General
+        applyString(meta, KEY_PERMISSION_MESSAGE, spec.getString("perm.message"));
+        applyBoolean(meta, KEY_REQUIRE_TARGET, spec.getBoolean("require_target", false));
 
         if (meta.hasCustomModelData()) {
             meta.getPersistentDataContainer().set(KEY_CUSTOM_MODEL_DATA, org.bukkit.persistence.PersistentDataType.INTEGER, meta.getCustomModelData());
         }
 
         item.setItemMeta(meta);
+    }
+
+    private void applyString(ItemMeta meta, NamespacedKey key, String val) {
+        if (val != null && !val.isEmpty()) meta.getPersistentDataContainer().set(key, org.bukkit.persistence.PersistentDataType.STRING, val);
+    }
+
+    private void applyDouble(ItemMeta meta, NamespacedKey key, double val) {
+        if (val > 0) meta.getPersistentDataContainer().set(key, org.bukkit.persistence.PersistentDataType.DOUBLE, val);
+    }
+
+    private void applyBoolean(ItemMeta meta, NamespacedKey key, boolean val) {
+        if (val) meta.getPersistentDataContainer().set(key, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
     }
 
     private Material matchMaterial(String name) {
@@ -525,9 +638,5 @@ public final class GUIManager extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Could not save GUI to file " + file.getName(), e);
             }
         }
-    }
-
-    public GuiItemMeta.Variant getCachedVariant(String guiId, int slot, String key) {
-        return null;
     }
 }

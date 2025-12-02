@@ -12,7 +12,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,7 +22,6 @@ public final class ItemEditor {
 
     public static final String TITLE_PREFIX = "§7[Item Editor] §6";
     public static final String COST_TITLE_PREFIX = "§7[Item Cost Editor] §e";
-    // 페이지 저장을 위한 키 추가
     public static final NamespacedKey KEY_PAGE = new NamespacedKey(GUIManager.getInstance(), "editor_page");
 
     private static final int LORE_SLOTS_PER_PAGE = 7;
@@ -51,37 +49,66 @@ public final class ItemEditor {
         inv.setItem(6, createOptionItem(Material.PAPER, "§eNo-Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default message", PersistentDataType.STRING));
         inv.setItem(8, createOptionItem(Material.OAK_DOOR, "§cBack", "§7Returns to the GUI editor."));
 
-        createClickActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click", EditSession.EditType.COMMAND_LEFT, EditSession.EditType.COMMAND_SHIFT_LEFT, session);
-        createClickActionRow(inv, 18, "§bRight-Click", "§cShift+Right-Click", EditSession.EditType.COMMAND_RIGHT, EditSession.EditType.COMMAND_SHIFT_RIGHT, session);
-        createKeybindActionRow(inv, 27, "§eF-Key", "§6Shift+F-Key", EditSession.EditType.COMMAND_F, EditSession.EditType.COMMAND_SHIFT_F, session);
-        createKeybindActionRow(inv, 36, "§3Q-Key", "§9Shift+Q-Key", EditSession.EditType.COMMAND_Q, EditSession.EditType.COMMAND_SHIFT_Q, session);
+        // 각 줄마다 정확한 EditType 세트를 전달합니다.
+
+        // Row 2: Left / Shift+Left
+        createClickActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click",
+                EditSession.EditType.COMMAND_LEFT, EditSession.EditType.MONEY_COST_LEFT, EditSession.EditType.COST_LEFT, EditSession.EditType.KEEP_OPEN_LEFT, EditSession.EditType.COOLDOWN_LEFT, EditSession.EditType.EXECUTOR_LEFT,
+                EditSession.EditType.COMMAND_SHIFT_LEFT, EditSession.EditType.MONEY_COST_SHIFT_LEFT, EditSession.EditType.COST_SHIFT_LEFT, EditSession.EditType.KEEP_OPEN_SHIFT_LEFT, EditSession.EditType.COOLDOWN_SHIFT_LEFT, EditSession.EditType.EXECUTOR_SHIFT_LEFT,
+                session);
+
+        // Row 3: Right / Shift+Right
+        createClickActionRow(inv, 18, "§bRight-Click", "§cShift+Right-Click",
+                EditSession.EditType.COMMAND_RIGHT, EditSession.EditType.MONEY_COST_RIGHT, EditSession.EditType.COST_RIGHT, EditSession.EditType.KEEP_OPEN_RIGHT, EditSession.EditType.COOLDOWN_RIGHT, EditSession.EditType.EXECUTOR_RIGHT,
+                EditSession.EditType.COMMAND_SHIFT_RIGHT, EditSession.EditType.MONEY_COST_SHIFT_RIGHT, EditSession.EditType.COST_SHIFT_RIGHT, EditSession.EditType.KEEP_OPEN_SHIFT_RIGHT, EditSession.EditType.COOLDOWN_SHIFT_RIGHT, EditSession.EditType.EXECUTOR_SHIFT_RIGHT,
+                session);
+
+        // Row 4: F / Shift+F
+        createKeybindActionRow(inv, 27, "§eF-Key", "§6Shift+F-Key",
+                EditSession.EditType.COMMAND_F, EditSession.EditType.MONEY_COST_F, EditSession.EditType.COST_F, EditSession.EditType.PERMISSION_F, EditSession.EditType.COOLDOWN_F, EditSession.EditType.EXECUTOR_F,
+                EditSession.EditType.COMMAND_SHIFT_F, EditSession.EditType.MONEY_COST_SHIFT_F, EditSession.EditType.COST_SHIFT_F, EditSession.EditType.PERMISSION_SHIFT_F, EditSession.EditType.COOLDOWN_SHIFT_F, EditSession.EditType.EXECUTOR_SHIFT_F,
+                session);
+
+        // Row 5: Q / Shift+Q
+        createKeybindActionRow(inv, 36, "§3Q-Key", "§9Shift+Q-Key",
+                EditSession.EditType.COMMAND_Q, EditSession.EditType.MONEY_COST_Q, EditSession.EditType.COST_Q, EditSession.EditType.PERMISSION_Q, EditSession.EditType.COOLDOWN_Q, EditSession.EditType.EXECUTOR_Q,
+                EditSession.EditType.COMMAND_SHIFT_Q, EditSession.EditType.MONEY_COST_SHIFT_Q, EditSession.EditType.COST_SHIFT_Q, EditSession.EditType.PERMISSION_SHIFT_Q, EditSession.EditType.COOLDOWN_SHIFT_Q, EditSession.EditType.EXECUTOR_SHIFT_Q,
+                session);
 
         setLoreItemsAndPagination(inv, session);
         player.openInventory(inv);
     }
 
-    private static void createClickActionRow(Inventory inv, int startSlot, String name1, String name2, EditSession.EditType baseType1, EditSession.EditType baseType2, EditSession s) {
-        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(baseType1), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_LEFT), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_LEFT)));
-        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_LEFT)));
-        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_LEFT)));
-        inv.setItem(startSlot + 3, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.KEEP_OPEN_LEFT)));
+    // [수정됨] 모든 타입(비용, 쿨타임 등)을 인자로 받아 처리하도록 변경
+    private static void createClickActionRow(Inventory inv, int startSlot, String name1, String name2,
+                                             EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType keepOpen1, EditSession.EditType cd1, EditSession.EditType exec1,
+                                             EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType keepOpen2, EditSession.EditType cd2, EditSession.EditType exec2,
+                                             EditSession s) {
+        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(cmd1), ActionKeyUtil.getKeyFromType(cd1), ActionKeyUtil.getKeyFromType(exec1)));
+        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq1)));
+        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq1)));
+        inv.setItem(startSlot + 3, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(keepOpen1)));
         inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
-        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(baseType2), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_SHIFT_LEFT), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_SHIFT_LEFT)));
-        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_SHIFT_LEFT)));
-        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_SHIFT_LEFT)));
-        inv.setItem(startSlot + 8, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.KEEP_OPEN_SHIFT_LEFT)));
+        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(cmd2), ActionKeyUtil.getKeyFromType(cd2), ActionKeyUtil.getKeyFromType(exec2)));
+        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq2)));
+        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq2)));
+        inv.setItem(startSlot + 8, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(keepOpen2)));
     }
 
-    private static void createKeybindActionRow(Inventory inv, int startSlot, String name1, String name2, EditSession.EditType baseType1, EditSession.EditType baseType2, EditSession s) {
-        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(baseType1), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_F), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_F)));
-        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_F)));
-        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_F)));
-        inv.setItem(startSlot + 3, createOptionItem(Material.IRON_BARS, "§f" + name1 + ": Permission", s, ActionKeyUtil.getKeyFromType(EditSession.EditType.PERMISSION_F), "None", PersistentDataType.STRING));
+    // 모든 타입(비용, 권한 등)을 인자로 받아 처리하도록 변경
+    private static void createKeybindActionRow(Inventory inv, int startSlot, String name1, String name2,
+                                               EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType perm1, EditSession.EditType cd1, EditSession.EditType exec1,
+                                               EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType perm2, EditSession.EditType cd2, EditSession.EditType exec2,
+                                               EditSession s) {
+        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(cmd1), ActionKeyUtil.getKeyFromType(cd1), ActionKeyUtil.getKeyFromType(exec1)));
+        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq1)));
+        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq1)));
+        inv.setItem(startSlot + 3, createOptionItem(Material.IRON_BARS, "§f" + name1 + ": Permission", s, ActionKeyUtil.getKeyFromType(perm1), "None", PersistentDataType.STRING));
         inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
-        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(baseType2), ActionKeyUtil.getKeyFromType(EditSession.EditType.COOLDOWN_SHIFT_F), ActionKeyUtil.getKeyFromType(EditSession.EditType.EXECUTOR_SHIFT_F)));
-        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.MONEY_COST_SHIFT_F)));
-        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(EditSession.EditType.COST_SHIFT_F)));
-        inv.setItem(startSlot + 8, createOptionItem(Material.IRON_BARS, "§f" + name2 + ": Permission", s, ActionKeyUtil.getKeyFromType(EditSession.EditType.PERMISSION_SHIFT_F), "None", PersistentDataType.STRING));
+        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(cmd2), ActionKeyUtil.getKeyFromType(cd2), ActionKeyUtil.getKeyFromType(exec2)));
+        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq2)));
+        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq2)));
+        inv.setItem(startSlot + 8, createOptionItem(Material.IRON_BARS, "§f" + name2 + ": Permission", s, ActionKeyUtil.getKeyFromType(perm2), "None", PersistentDataType.STRING));
     }
 
     private static void setLoreItemsAndPagination(Inventory inv, EditSession session) {
@@ -126,7 +153,6 @@ public final class ItemEditor {
         loreList.add("§dShift-Click for Previous Page");
         meta.setLore(loreList);
 
-        // 현재 페이지 정보를 화살표의 PersistentDataContainer에 저장
         meta.getPersistentDataContainer().set(KEY_PAGE, PersistentDataType.INTEGER, page);
 
         pageButton.setItemMeta(meta);
@@ -194,20 +220,14 @@ public final class ItemEditor {
     private static ItemStack createItemCostItem(EditSession s, NamespacedKey key) {
         PersistentDataContainer pdc = Objects.requireNonNull(s.getItem().getItemMeta()).getPersistentDataContainer();
         List<String> lore = new ArrayList<>(Arrays.asList("§b(Click to set items)", " "));
+
         if (pdc.has(key, PersistentDataType.STRING)) {
-            try {
-                ItemStack[] items = ItemSerialization.itemStackArrayFromBase64(pdc.get(key, PersistentDataType.STRING));
-                if (items != null && items.length > 0) {
-                    lore.add("§7Current Cost:");
-                    for (ItemStack item : items) {
-                        if (item == null) continue;
-                        lore.add("§f- " + (item.hasItemMeta() && Objects.requireNonNull(item.getItemMeta()).hasDisplayName() ? item.getItemMeta().getDisplayName() : item.getType().name()) + " §7x" + item.getAmount());
-                    }
-                } else {
-                    lore.add("§7Current Cost: §cNone");
-                }
-            } catch (IOException e) {
-                lore.add("§cError loading cost items.");
+            String base64 = pdc.get(key, PersistentDataType.STRING);
+            if (base64 != null && !base64.isEmpty()) {
+                lore.add("§7Current Cost:");
+                lore.addAll(ItemSerialization.getCostDisplay(base64));
+            } else {
+                lore.add("§7Current Cost: §cNone");
             }
         } else {
             lore.add("§7Current Cost: §cNone");

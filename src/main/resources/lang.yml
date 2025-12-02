@@ -74,3 +74,31 @@ command:
   open:
     usage: "&cUsage: /gui open <id> [player]"
     success_other: "&aOpened GUI '{id}' for {player}."
+
+# Editor related messages
+editor:
+  saved: "&aGUI '{id}' has been saved."
+  cost_set: "&aCost items have been set."
+  cost_save_fail: "&cFailed to save cost items."
+  item_saved: "&aItem properties saved."
+  item_auto_save_fail: "&cThere was an error auto-saving the item properties."
+  require_vault: "&cThis feature requires the Vault plugin."
+  lore_removed: "&aLore line {line} removed."
+
+  prompt:
+    cooldown: "&aEnter the cooldown in seconds (e.g., 10.5). Type '0' or 'delete' to remove."
+    name: "&aEnter the new item name."
+    number: "&aEnter the new number value. Type 'delete' to remove."
+    model_id: "&aEnter the Item Model ID string. Type 'delete' to remove."
+    lore_add: "&aEnter the new lore line to add."
+    lore_edit: "&aEnter the new text for this lore line."
+    money: "&aEnter the money cost. Type '0' or 'delete' to remove."
+    general: "&aEnter the text for the setting. Type 'delete' to remove."
+    cancel: "&eType 'cancel' to abort."
+
+# Checks & Cost processing messages
+check:
+  no_item: "&cYou don't have the required items."
+  error_item: "&cError processing required items."
+  no_money: "&cYou don't have enough money."
+  remove_fail: "&cCould not remove some items."

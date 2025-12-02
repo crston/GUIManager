@@ -8,6 +8,7 @@ import java.util.Map;
 
 public class GUI {
 
+    private String id;
     private String title;
     private int size;
     private final Map<Integer, ItemStack> items = new HashMap<>();
@@ -21,9 +22,18 @@ public class GUI {
     }
 
     public GUI(GUI other) {
+        this.id = other.id;
         this.title = other.title;
         this.size = other.size;
         other.items.forEach((slot, item) -> this.items.put(slot, item.clone()));
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getTitle() { return title; }

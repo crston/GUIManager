@@ -107,7 +107,6 @@ public final class ActionKeyUtil {
     public static NamespacedKey getKeyFromType(EditSession.EditType type) {
         switch (type) {
             case COMMAND_LEFT: return GUIManager.KEY_COMMAND_LEFT;
-            case PERMISSION_LEFT: return GUIManager.KEY_PERMISSION_LEFT;
             case COST_LEFT: return GUIManager.KEY_COST_LEFT;
             case MONEY_COST_LEFT: return GUIManager.KEY_MONEY_COST_LEFT;
             case COOLDOWN_LEFT: return GUIManager.KEY_COOLDOWN_LEFT;
@@ -115,7 +114,6 @@ public final class ActionKeyUtil {
             case KEEP_OPEN_LEFT: return GUIManager.KEY_KEEP_OPEN_LEFT;
 
             case COMMAND_SHIFT_LEFT: return GUIManager.KEY_COMMAND_SHIFT_LEFT;
-            case PERMISSION_SHIFT_LEFT: return GUIManager.KEY_PERMISSION_SHIFT_LEFT;
             case COST_SHIFT_LEFT: return GUIManager.KEY_COST_SHIFT_LEFT;
             case MONEY_COST_SHIFT_LEFT: return GUIManager.KEY_MONEY_COST_SHIFT_LEFT;
             case COOLDOWN_SHIFT_LEFT: return GUIManager.KEY_COOLDOWN_SHIFT_LEFT;
@@ -123,7 +121,6 @@ public final class ActionKeyUtil {
             case KEEP_OPEN_SHIFT_LEFT: return GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
 
             case COMMAND_RIGHT: return GUIManager.KEY_COMMAND_RIGHT;
-            case PERMISSION_RIGHT: return GUIManager.KEY_PERMISSION_RIGHT;
             case COST_RIGHT: return GUIManager.KEY_COST_RIGHT;
             case MONEY_COST_RIGHT: return GUIManager.KEY_MONEY_COST_RIGHT;
             case COOLDOWN_RIGHT: return GUIManager.KEY_COOLDOWN_RIGHT;
@@ -131,7 +128,6 @@ public final class ActionKeyUtil {
             case KEEP_OPEN_RIGHT: return GUIManager.KEY_KEEP_OPEN_RIGHT;
 
             case COMMAND_SHIFT_RIGHT: return GUIManager.KEY_COMMAND_SHIFT_RIGHT;
-            case PERMISSION_SHIFT_RIGHT: return GUIManager.KEY_PERMISSION_SHIFT_RIGHT;
             case COST_SHIFT_RIGHT: return GUIManager.KEY_COST_SHIFT_RIGHT;
             case MONEY_COST_SHIFT_RIGHT: return GUIManager.KEY_MONEY_COST_SHIFT_RIGHT;
             case COOLDOWN_SHIFT_RIGHT: return GUIManager.KEY_COOLDOWN_SHIFT_RIGHT;
@@ -166,6 +162,7 @@ public final class ActionKeyUtil {
             case COOLDOWN_SHIFT_Q: return GUIManager.KEY_COOLDOWN_SHIFT_Q;
             case EXECUTOR_SHIFT_Q: return GUIManager.KEY_EXECUTOR_SHIFT_Q;
 
+            case REQUIRE_TARGET: return GUIManager.KEY_REQUIRE_TARGET;
             case PERMISSION_MESSAGE: return GUIManager.KEY_PERMISSION_MESSAGE;
             case CUSTOM_MODEL_DATA: return GUIManager.KEY_CUSTOM_MODEL_DATA;
             case ITEM_DAMAGE: return GUIManager.KEY_ITEM_DAMAGE;

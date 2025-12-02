@@ -1,7 +1,6 @@
 package com.gmail.bobason01;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -65,7 +64,7 @@ public class GUIListener implements Listener {
             if (gui != null) {
                 gui.updateFromInventory(event.getInventory());
                 plugin.saveGui(guiId);
-                player.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' has been saved.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.saved", "{id}", guiId));
             }
             plugin.removeEditMode(player);
         } else if (plugin.isSettingCost(player) && title.startsWith(ItemEditor.COST_TITLE_PREFIX)) {
@@ -76,27 +75,46 @@ public class GUIListener implements Listener {
             ItemMeta meta = targetItem.getItemMeta();
             if (meta == null) return;
 
+            // 현재 코스트 창에 있는 아이템 수집
             List<ItemStack> costs = new ArrayList<>();
             for (ItemStack item : event.getInventory().getContents()) {
-                if (item != null && !item.getType().isAir()) costs.add(item.clone());
+                if (item != null && !item.getType().isAir()) {
+                    costs.add(item.clone());
+                }
             }
 
+            NamespacedKey key = ActionKeyUtil.getKeyFromType(session.getEditType());
+
             try {
-                String serialized = ItemSerialization.itemStackArrayToBase64(costs.toArray(new ItemStack[0]));
-                meta.getPersistentDataContainer().set(ActionKeyUtil.getKeyFromType(session.getEditType()), PersistentDataType.STRING, serialized);
+                if (costs.isEmpty()) {
+                    // 비어있다면 데이터 완전 삭제 (잔상 제거)
+                    meta.getPersistentDataContainer().remove(key);
+                    player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set") + " (Cleared)");
+                } else {
+                    // 아이템이 있다면 저장
+                    String serialized = ItemSerialization.itemStackArrayToBase64(costs.toArray(new ItemStack[0]));
+                    meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, serialized);
+                    player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set"));
+                }
+
                 targetItem.setItemMeta(meta);
 
+                // 1. GUI 데이터 업데이트
                 GUI gui = plugin.getGui(session.getGuiName());
                 if (gui != null) gui.setItem(session.getSlot(), targetItem);
 
-                player.sendMessage(ChatColor.GREEN + "Cost items have been set.");
+                // 2. [중요] 세션 아이템도 최신 상태로 갱신 (즉시 반영을 위해)
+                session.setItem(targetItem);
+
             } catch (Exception e) {
-                player.sendMessage(ChatColor.RED + "Failed to save cost items.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_save_fail"));
                 e.printStackTrace();
             }
 
             plugin.endCostSession(player);
+            // 3. 갱신된 세션으로 에디터 다시 열기
             Bukkit.getScheduler().runTask(plugin, () -> ItemEditor.open(player, session));
+
         } else if (title.startsWith(ItemEditor.TITLE_PREFIX)) {
             if (plugin.hasChatSession(player) || plugin.isSettingCost(player)) {
                 return;
@@ -112,10 +130,10 @@ public class GUIListener implements Listener {
                 if (gui != null) {
                     gui.setItem(itemSlot, updatedItem);
                     plugin.saveGui(guiName);
-                    player.sendMessage(ChatColor.GREEN + "Item properties saved.");
+                    player.sendMessage(plugin.getLanguageManager().getMessage("editor.item_saved"));
                 }
             } catch (Exception e) {
-                player.sendMessage(ChatColor.RED + "There was an error auto-saving the item properties.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.item_auto_save_fail"));
                 plugin.getLogger().log(Level.WARNING, "Could not auto-save item from ItemEditor for player " + player.getName(), e);
             }
         }
@@ -172,7 +190,6 @@ public class GUIListener implements Listener {
         int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
         EditSession session = new EditSession(guiName, itemSlot, currentIcon.clone());
 
-        // [수정] 현재 에디터 창의 화살표(53번)에서 페이지 정보를 읽어와 세션에 복구
         ItemStack pageArrow = editorInv.getItem(53);
         if (pageArrow != null && pageArrow.hasItemMeta()) {
             Integer page = pageArrow.getItemMeta().getPersistentDataContainer().get(ItemEditor.KEY_PAGE, PersistentDataType.INTEGER);
@@ -227,7 +244,7 @@ public class GUIListener implements Listener {
             if (type.name().startsWith("COST") && !type.name().contains("MONEY")) {
                 openItemCostEditor(player, session);
             } else if (type.name().contains("MONEY_COST") && GUIManager.econ == null) {
-                player.sendMessage(ChatColor.RED + "This feature requires the Vault plugin.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.require_vault"));
             } else if (type == EditSession.EditType.REQUIRE_TARGET || type.name().startsWith("KEEP_OPEN")) {
                 toggleByte(session.getItem(), ActionKeyUtil.getKeyFromType(type), player);
                 ItemEditor.open(player, session);
@@ -257,11 +274,15 @@ public class GUIListener implements Listener {
         Inventory costInv = Bukkit.createInventory(null, 54, costTitle);
         try {
             NamespacedKey key = ActionKeyUtil.getKeyFromType(session.getEditType());
-            String data = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer().get(key, PersistentDataType.STRING);
-            if (data != null && !data.isEmpty()) {
-                ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(data);
-                if (costs != null) {
-                    costInv.setContents(Arrays.copyOf(costs, costInv.getSize()));
+            PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+
+            if (pdc.has(key, PersistentDataType.STRING)) {
+                String data = pdc.get(key, PersistentDataType.STRING);
+                if (data != null && !data.isEmpty()) {
+                    ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(data);
+                    if (costs != null) {
+                        costInv.setContents(Arrays.copyOf(costs, costInv.getSize()));
+                    }
                 }
             }
         } catch (Exception ignored) {}
@@ -298,11 +319,11 @@ public class GUIListener implements Listener {
                 try {
                     ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(serializedCosts);
                     if (!hasItems(player.getInventory(), costs)) {
-                        player.sendMessage(ChatColor.RED + "You don't have the required items.");
+                        player.sendMessage(plugin.getLanguageManager().getMessage("check.no_item"));
                         return false;
                     }
                 } catch (Exception e) {
-                    player.sendMessage(ChatColor.RED + "Error processing required items.");
+                    player.sendMessage(plugin.getLanguageManager().getMessage("check.error_item"));
                     return false;
                 }
             }
@@ -310,7 +331,7 @@ public class GUIListener implements Listener {
         if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
             double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
             if (cost > 0 && !GUIManager.econ.has(player, cost)) {
-                player.sendMessage(ChatColor.RED + "You don't have enough money.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("check.no_money"));
                 return false;
             }
         }
@@ -318,7 +339,7 @@ public class GUIListener implements Listener {
             String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
             if (serializedCosts != null && !serializedCosts.isEmpty()) {
                 try {
-                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts));
+                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts), plugin);
                 } catch (Exception ignored) {}
             }
         }
@@ -454,8 +475,7 @@ public class GUIListener implements Listener {
                 lore.remove(lineIndex);
                 meta.setLore(lore.isEmpty() ? null : lore);
                 session.getItem().setItemMeta(meta);
-                player.sendMessage(ChatColor.GREEN + "Lore line " + (lineIndex + 1) + " removed.");
-
+                player.sendMessage(plugin.getLanguageManager().getMessage("editor.lore_removed", "{line}", String.valueOf(lineIndex + 1)));
                 player.getOpenInventory().getTopInventory().setItem(4, session.getItem());
             }
         }
@@ -465,36 +485,36 @@ public class GUIListener implements Listener {
     private void sendChatPrompt(Player player, EditSession.EditType type) {
         String msg;
         if (type.name().startsWith("COOLDOWN_")) {
-            msg = "Enter the cooldown in seconds (e.g., 10.5). Type '0' or 'delete' to remove.";
+            msg = plugin.getLanguageManager().getMessage("editor.prompt.cooldown");
         } else {
             switch (type) {
                 case NAME:
-                    msg = "Enter the new item name.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.name");
                     break;
                 case CUSTOM_MODEL_DATA:
                 case ITEM_DAMAGE:
-                    msg = "Enter the new number value. Type 'delete' to remove.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.number");
                     break;
                 case ITEM_MODEL_ID:
-                    msg = "Enter the Item Model ID string. Type 'delete' to remove.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.model_id");
                     break;
                 case LORE_ADD:
-                    msg = "Enter the new lore line to add.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.lore_add");
                     break;
                 case LORE_EDIT:
-                    msg = "Enter the new text for this lore line.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.lore_edit");
                     break;
                 case MONEY_COST_LEFT: case MONEY_COST_RIGHT: case MONEY_COST_SHIFT_LEFT: case MONEY_COST_SHIFT_RIGHT:
                 case MONEY_COST_F: case MONEY_COST_SHIFT_F: case MONEY_COST_Q: case MONEY_COST_SHIFT_Q:
-                    msg = "Enter the money cost. Type '0' or 'delete' to remove.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.money");
                     break;
                 default:
-                    msg = "Enter the text for the setting. Type 'delete' to remove.";
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.general");
                     break;
             }
         }
-        player.sendMessage(ChatColor.GREEN + msg);
-        player.sendMessage(ChatColor.YELLOW + "Type 'cancel' to abort.");
+        player.sendMessage(msg);
+        player.sendMessage(plugin.getLanguageManager().getMessage("editor.prompt.cancel"));
     }
 
     private boolean isGuiEditor(Player p, String title) {
@@ -507,7 +527,6 @@ public class GUIListener implements Listener {
     private boolean hasItems(Inventory inventory, ItemStack[] requiredItems) {
         for (ItemStack requiredItem : requiredItems) {
             if (requiredItem == null || requiredItem.getType() == Material.AIR) continue;
-
             if (!containsAtLeastStrict(inventory, requiredItem, requiredItem.getAmount())) {
                 return false;
             }
@@ -519,7 +538,6 @@ public class GUIListener implements Listener {
         int found = 0;
         for (ItemStack invItem : inventory.getContents()) {
             if (invItem == null || invItem.getType() != costItem.getType()) continue;
-
             boolean isMatch = true;
             if (costItem.hasItemMeta()) {
                 if (!invItem.hasItemMeta()) {
@@ -527,7 +545,6 @@ public class GUIListener implements Listener {
                 } else {
                     ItemMeta costMeta = costItem.getItemMeta();
                     ItemMeta invMeta = invItem.getItemMeta();
-
                     if (costMeta.hasDisplayName()) {
                         if (!invMeta.hasDisplayName() || !invMeta.getDisplayName().equals(costMeta.getDisplayName())) {
                             isMatch = false;
@@ -540,7 +557,6 @@ public class GUIListener implements Listener {
                     }
                 }
             }
-
             if (isMatch) {
                 found += invItem.getAmount();
             }
@@ -548,7 +564,7 @@ public class GUIListener implements Listener {
         return found >= amountNeeded;
     }
 
-    public static void removeStaticItems(Player player, ItemStack[] items) {
+    public static void removeStaticItems(Player player, ItemStack[] items, GUIManager plugin) {
         if (items == null || items.length == 0) return;
         for (ItemStack costItem : items) {
             if (costItem == null || costItem.getType().isAir()) continue;
@@ -592,7 +608,7 @@ public class GUIListener implements Listener {
             }
 
             if (remaining > 0) {
-                player.sendMessage(ChatColor.RED + "일부 아이템을 제거할 수 없습니다.");
+                player.sendMessage(plugin.getLanguageManager().getMessage("check.remove_fail"));
             }
         }
         player.updateInventory();
@@ -604,6 +620,6 @@ public class GUIListener implements Listener {
                                      NamespacedKey itemCostKey,
                                      double moneyOverride,
                                      String itemCostBase64) {
-        return CostBridge.checkAndTake(player, this, pdc, moneyCostKey, itemCostKey, moneyOverride, itemCostBase64);
+        return CostBridge.checkAndTake(player, plugin, pdc, moneyCostKey, itemCostKey, moneyOverride, itemCostBase64);
     }
 }
