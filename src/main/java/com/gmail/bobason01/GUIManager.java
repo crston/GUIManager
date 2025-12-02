@@ -24,104 +24,37 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-/**
- * GUIManager
- * Core plugin class handling GUI lifecycle, sessions, economy, and configurations.
- */
 public final class GUIManager extends JavaPlugin {
 
     private static GUIManager instance;
     public static Economy econ = null;
     private boolean placeholderApiEnabled = false;
     private BukkitTask autoSaveTask;
+    private BukkitTask guiUpdateTask; // 실시간 업데이트를 위한 태스크
     private LanguageManager languageManager;
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    // --- Namespaced Keys (Unique IDs for PersistentDataContainer) ---
+    // --- Namespaced Keys ---
+    public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_DAMAGE, KEY_ITEM_MODEL_ID;
 
-    // General Item Settings
-    public static NamespacedKey KEY_PERMISSION_MESSAGE;
-    public static NamespacedKey KEY_REQUIRE_TARGET;
-    public static NamespacedKey KEY_CUSTOM_MODEL_DATA;
-    public static NamespacedKey KEY_ITEM_DAMAGE;
-    public static NamespacedKey KEY_ITEM_MODEL_ID;
+    public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
 
-    // Left Click Keys
-    public static NamespacedKey KEY_COMMAND_LEFT;
-    public static NamespacedKey KEY_PERMISSION_LEFT;
-    public static NamespacedKey KEY_COST_LEFT;
-    public static NamespacedKey KEY_MONEY_COST_LEFT;
-    public static NamespacedKey KEY_COOLDOWN_LEFT;
-    public static NamespacedKey KEY_EXECUTOR_LEFT;
-    public static NamespacedKey KEY_KEEP_OPEN_LEFT;
+    public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT, KEY_KEEP_OPEN_RIGHT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT, KEY_KEEP_OPEN_SHIFT_RIGHT;
 
-    // Shift + Left Click Keys
-    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT;
-    public static NamespacedKey KEY_PERMISSION_SHIFT_LEFT;
-    public static NamespacedKey KEY_COST_SHIFT_LEFT;
-    public static NamespacedKey KEY_MONEY_COST_SHIFT_LEFT;
-    public static NamespacedKey KEY_COOLDOWN_SHIFT_LEFT;
-    public static NamespacedKey KEY_EXECUTOR_SHIFT_LEFT;
-    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_LEFT;
+    public static NamespacedKey KEY_COMMAND_F, KEY_PERMISSION_F, KEY_COST_F, KEY_MONEY_COST_F, KEY_COOLDOWN_F, KEY_EXECUTOR_F;
+    public static NamespacedKey KEY_COMMAND_SHIFT_F, KEY_PERMISSION_SHIFT_F, KEY_COST_SHIFT_F, KEY_MONEY_COST_SHIFT_F, KEY_COOLDOWN_SHIFT_F, KEY_EXECUTOR_SHIFT_F;
 
-    // Right Click Keys
-    public static NamespacedKey KEY_COMMAND_RIGHT;
-    public static NamespacedKey KEY_PERMISSION_RIGHT;
-    public static NamespacedKey KEY_COST_RIGHT;
-    public static NamespacedKey KEY_MONEY_COST_RIGHT;
-    public static NamespacedKey KEY_COOLDOWN_RIGHT;
-    public static NamespacedKey KEY_EXECUTOR_RIGHT;
-    public static NamespacedKey KEY_KEEP_OPEN_RIGHT;
-
-    // Shift + Right Click Keys
-    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT;
-    public static NamespacedKey KEY_PERMISSION_SHIFT_RIGHT;
-    public static NamespacedKey KEY_COST_SHIFT_RIGHT;
-    public static NamespacedKey KEY_MONEY_COST_SHIFT_RIGHT;
-    public static NamespacedKey KEY_COOLDOWN_SHIFT_RIGHT;
-    public static NamespacedKey KEY_EXECUTOR_SHIFT_RIGHT;
-    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_RIGHT;
-
-    // F (Swap Hand) Keys
-    public static NamespacedKey KEY_COMMAND_F;
-    public static NamespacedKey KEY_PERMISSION_F;
-    public static NamespacedKey KEY_COST_F;
-    public static NamespacedKey KEY_MONEY_COST_F;
-    public static NamespacedKey KEY_COOLDOWN_F;
-    public static NamespacedKey KEY_EXECUTOR_F;
-
-    // Shift + F Keys
-    public static NamespacedKey KEY_COMMAND_SHIFT_F;
-    public static NamespacedKey KEY_PERMISSION_SHIFT_F;
-    public static NamespacedKey KEY_COST_SHIFT_F;
-    public static NamespacedKey KEY_MONEY_COST_SHIFT_F;
-    public static NamespacedKey KEY_COOLDOWN_SHIFT_F;
-    public static NamespacedKey KEY_EXECUTOR_SHIFT_F;
-
-    // Q (Drop) Keys
-    public static NamespacedKey KEY_COMMAND_Q;
-    public static NamespacedKey KEY_PERMISSION_Q;
-    public static NamespacedKey KEY_COST_Q;
-    public static NamespacedKey KEY_MONEY_COST_Q;
-    public static NamespacedKey KEY_COOLDOWN_Q;
-    public static NamespacedKey KEY_EXECUTOR_Q;
-
-    // Shift + Q Keys
-    public static NamespacedKey KEY_COMMAND_SHIFT_Q;
-    public static NamespacedKey KEY_PERMISSION_SHIFT_Q;
-    public static NamespacedKey KEY_COST_SHIFT_Q;
-    public static NamespacedKey KEY_MONEY_COST_SHIFT_Q;
-    public static NamespacedKey KEY_COOLDOWN_SHIFT_Q;
-    public static NamespacedKey KEY_EXECUTOR_SHIFT_Q;
+    public static NamespacedKey KEY_COMMAND_Q, KEY_PERMISSION_Q, KEY_COST_Q, KEY_MONEY_COST_Q, KEY_COOLDOWN_Q, KEY_EXECUTOR_Q;
+    public static NamespacedKey KEY_COMMAND_SHIFT_Q, KEY_PERMISSION_SHIFT_Q, KEY_COST_SHIFT_Q, KEY_MONEY_COST_SHIFT_Q, KEY_COOLDOWN_SHIFT_Q, KEY_EXECUTOR_SHIFT_Q;
 
 
-    // --- Data Maps ---
     private final Map<String, GUI> guis = new ConcurrentHashMap<>();
     private final Map<String, String> titleToGuiIdCache = new ConcurrentHashMap<>();
     private File guisFolder;
 
-    // Session Maps
     private final Map<UUID, String> playersInEditMode = new ConcurrentHashMap<>();
     private final Map<UUID, EditSession> chatEditSessions = new ConcurrentHashMap<>();
     private final Map<UUID, EditSession> playersSettingCost = new ConcurrentHashMap<>();
@@ -133,12 +66,10 @@ public final class GUIManager extends JavaPlugin {
         instance = this;
         this.languageManager = new LanguageManager(this);
 
-        // Economy Setup
         if (!setupEconomy()) {
             getLogger().warning("Vault not found. Money cost features will be disabled.");
         }
 
-        // PlaceholderAPI Setup
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             this.placeholderApiEnabled = true;
             getLogger().info("PlaceholderAPI found. Placeholders enabled.");
@@ -146,32 +77,32 @@ public final class GUIManager extends JavaPlugin {
             getLogger().info("PlaceholderAPI not found. Placeholders disabled.");
         }
 
-        // Initialize Keys
         initializeKeys();
 
-        // GUI Folder Setup
         this.guisFolder = new File(getDataFolder(), "guis");
         if (!this.guisFolder.exists()) {
             this.guisFolder.mkdirs();
         }
 
-        // Load GUIs
         loadGuis();
 
-        // Register Listeners
         GUIListener guiListener = new GUIListener(this);
         Bukkit.getPluginManager().registerEvents(guiListener, this);
         Bukkit.getPluginManager().registerEvents(new ChatListener(this, guiListener), this);
         Bukkit.getPluginManager().registerEvents(new KeybindListener(this, guiListener), this);
 
-        // Register Commands
         GUICommand guiCommand = new GUICommand(this);
         Objects.requireNonNull(getCommand("gui")).setExecutor(guiCommand);
         Objects.requireNonNull(getCommand("gui")).setTabCompleter(guiCommand);
 
-        // Auto Save Task (Every 5 minutes)
+        // Auto Save (5 min)
         long autoSaveInterval = 20L * 60 * 5;
         this.autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, this::saveGuis, autoSaveInterval, autoSaveInterval);
+
+        // 실시간 PAPI 업데이트 태스크 시작 (1초마다 갱신)
+        if (this.placeholderApiEnabled) {
+            startGuiUpdateTask();
+        }
 
         getLogger().info("GUIManager enabled.");
     }
@@ -181,10 +112,94 @@ public final class GUIManager extends JavaPlugin {
         if (this.autoSaveTask != null && !this.autoSaveTask.isCancelled()) {
             this.autoSaveTask.cancel();
         }
+        if (this.guiUpdateTask != null && !this.guiUpdateTask.isCancelled()) {
+            this.guiUpdateTask.cancel();
+        }
         getLogger().info("Saving all GUI data before disable.");
         saveGuisSync();
         HeadCache.clear();
         getLogger().info("GUIManager disabled.");
+    }
+
+    // GUI 실시간 업데이트 로직
+    private void startGuiUpdateTask() {
+        // 20 ticks = 1초마다 실행
+        this.guiUpdateTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                // 현재 플레이어가 열고 있는 인벤토리의 제목 확인
+                String title = player.getOpenInventory().getTitle();
+                String guiId = getGuiIdByTitle(title);
+
+                // 우리 플러그인의 GUI가 아니거나, 에디터 모드 중이면 패스
+                if (guiId == null || isInEditMode(player)) continue;
+
+                GUI gui = getGui(guiId);
+                if (gui == null) continue;
+
+                Inventory openInv = player.getOpenInventory().getTopInventory();
+
+                // GUI의 원본 아이템들을 순회하며 PAPI 적용 후 업데이트
+                for (Map.Entry<Integer, ItemStack> entry : gui.getItems().entrySet()) {
+                    int slot = entry.getKey();
+                    ItemStack templateItem = entry.getValue();
+                    if (templateItem == null) continue;
+
+                    // PAPI 적용된 새 아이템 생성
+                    ItemStack updatedItem = applyPlaceholders(templateItem.clone(), player);
+
+                    // 기존 아이템과 다를 경우에만 교체 (네트워크 트래픽 최적화)
+                    ItemStack currentItem = openInv.getItem(slot);
+                    if (!Objects.equals(currentItem, updatedItem)) {
+                        openInv.setItem(slot, updatedItem);
+                    }
+                }
+            }
+        }, 20L, 20L);
+    }
+
+    // 아이템에 PAPI 적용하는 헬퍼 메서드
+    private ItemStack applyPlaceholders(ItemStack item, Player player) {
+        if (!placeholderApiEnabled || item == null || !item.hasItemMeta()) return item;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        boolean changed = false;
+
+        // Display Name
+        if (meta.hasDisplayName()) {
+            String originalName = meta.getDisplayName();
+            String newName = PlaceholderAPI.setPlaceholders(player, originalName);
+            if (!originalName.equals(newName)) {
+                meta.setDisplayName(newName);
+                changed = true;
+            }
+        }
+
+        // Lore
+        if (meta.hasLore()) {
+            List<String> originalLore = meta.getLore();
+            List<String> newLore = new ArrayList<>();
+            boolean loreChanged = false;
+
+            if (originalLore != null) {
+                for (String line : originalLore) {
+                    String newLine = PlaceholderAPI.setPlaceholders(player, line);
+                    newLore.add(newLine);
+                    if (!line.equals(newLine)) loreChanged = true;
+                }
+            }
+
+            if (loreChanged) {
+                meta.setLore(newLore);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     public static GUIManager getInstance() {
@@ -208,7 +223,6 @@ public final class GUIManager extends JavaPlugin {
     }
 
     private void initializeKeys() {
-        // General
         KEY_PERMISSION_MESSAGE = new NamespacedKey(this, "perm_msg");
         KEY_REQUIRE_TARGET = new NamespacedKey(this, "req_target");
         KEY_CUSTOM_MODEL_DATA = new NamespacedKey(this, "model_data");
@@ -297,12 +311,14 @@ public final class GUIManager extends JavaPlugin {
         return Math.max(0, expiryTime - System.currentTimeMillis());
     }
 
+    // 초기 오픈 시에만 호출되는 메서드 (실시간 갱신은 startGuiUpdateTask에서 처리)
     public Inventory getPlayerSpecificInventory(Player player, String guiId) {
         GUI originalGui = getGui(guiId);
         if (originalGui == null) {
             return null;
         }
 
+        // 초기 타이틀 설정
         String title = originalGui.getTitle();
         if (placeholderApiEnabled) {
             title = PlaceholderAPI.setPlaceholders(player, title);
@@ -314,55 +330,31 @@ public final class GUIManager extends JavaPlugin {
             ItemStack originalItem = entry.getValue();
             if (originalItem == null) continue;
 
-            ItemStack playerItem = originalItem.clone();
-
-            if (placeholderApiEnabled && playerItem.hasItemMeta()) {
-                ItemMeta meta = playerItem.getItemMeta();
-                if (meta != null) {
-                    if (meta.hasDisplayName()) {
-                        meta.setDisplayName(PlaceholderAPI.setPlaceholders(player, meta.getDisplayName()));
-                    }
-                    if (meta.hasLore()) {
-                        List<String> parsedLore = new ArrayList<>();
-                        List<String> originalLore = meta.getLore();
-                        if (originalLore != null) {
-                            for (String line : originalLore) {
-                                parsedLore.add(PlaceholderAPI.setPlaceholders(player, line));
-                            }
-                            meta.setLore(parsedLore);
-                        }
-                    }
-                    playerItem.setItemMeta(meta);
-                }
-            }
+            // 초기 아이템 PAPI 적용
+            ItemStack playerItem = applyPlaceholders(originalItem.clone(), player);
             playerInv.setItem(entry.getKey(), playerItem);
         }
 
         return playerInv;
     }
 
-    // --- Session & Mode Management ---
     public boolean isInEditMode(Player p) { return playersInEditMode.containsKey(p.getUniqueId()); }
     public void setEditMode(Player p, String guiName) { playersInEditMode.put(p.getUniqueId(), guiName); }
     public String getEditingGuiName(Player p) { return playersInEditMode.get(p.getUniqueId()); }
     public void removeEditMode(Player p) { playersInEditMode.remove(p.getUniqueId()); }
-
     public boolean hasChatSession(Player p) { return chatEditSessions.containsKey(p.getUniqueId()); }
     public EditSession getChatSession(Player p) { return chatEditSessions.get(p.getUniqueId()); }
     public void startChatSession(Player p, EditSession s) { chatEditSessions.put(p.getUniqueId(), s); }
     public void endChatSession(Player p) { chatEditSessions.remove(p.getUniqueId()); }
-
     public boolean isSettingCost(Player p) { return playersSettingCost.containsKey(p.getUniqueId()); }
     public EditSession getCostSession(Player p) { return playersSettingCost.get(p.getUniqueId()); }
     public void startCostSession(Player p, EditSession s) { playersSettingCost.put(p.getUniqueId(), s); }
     public void endCostSession(Player p) { playersSettingCost.remove(p.getUniqueId()); }
-
     public boolean isAwaitingTarget(Player p) { return playersAwaitingTarget.containsKey(p.getUniqueId()); }
     public TargetInfo getAwaitingTargetInfo(Player p) { return playersAwaitingTarget.get(p.getUniqueId()); }
     public void setAwaitingTarget(Player p, TargetInfo info) { playersAwaitingTarget.put(p.getUniqueId(), info); }
     public void removeAwaitingTarget(Player p) { playersAwaitingTarget.remove(p.getUniqueId()); }
 
-    // --- GUI Management ---
     public Map<String, GUI> getGuis() { return guis; }
     public GUI getGui(String id) { return guis.get(id.toLowerCase()); }
     public String getGuiIdByTitle(String title) { return titleToGuiIdCache.get(title); }
@@ -392,7 +384,7 @@ public final class GUIManager extends JavaPlugin {
         GUI gui = guis.remove(oldId.toLowerCase());
         if (gui != null) {
             guis.put(newId.toLowerCase(), gui);
-            gui.setId(newId); // Ensure GUI object knows its new ID
+            gui.setId(newId);
             if (titleToGuiIdCache.containsKey(gui.getTitle())) {
                 titleToGuiIdCache.put(gui.getTitle(), newId.toLowerCase());
             }
@@ -421,8 +413,6 @@ public final class GUIManager extends JavaPlugin {
         }
     }
 
-    // --- Loading & Saving ---
-
     public void loadGuis() {
         guis.clear();
         titleToGuiIdCache.clear();
@@ -439,7 +429,7 @@ public final class GUIManager extends JavaPlugin {
                 String title = config.getString("title", "GUI");
                 int size = config.getInt("size", 27);
                 GUI gui = new GUI(title, size);
-                gui.setId(id); // Set ID
+                gui.setId(id);
 
                 ConfigurationSection itemsSection = config.getConfigurationSection("items");
                 if (itemsSection != null) {
