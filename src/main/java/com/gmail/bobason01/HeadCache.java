@@ -1,35 +1,29 @@
 package com.gmail.bobason01;
 
 import org.bukkit.inventory.ItemStack;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * HeadCache
- * Simple lock free cache for head item templates keyed by texture key
- * Stores already profiled ItemStack templates to avoid reflection on hot paths
- */
-public final class HeadCache {
+public class HeadCache {
 
-    private HeadCache() {}
+    // Base64 문자열을 키로 하여 생성된 머리 아이템을 캐싱
+    private static final Map<String, ItemStack> cache = new ConcurrentHashMap<>();
 
-    private static final Map<String, ItemStack> CACHE = new ConcurrentHashMap<>(256);
-
-    public static ItemStack get(String key) {
-        return CACHE.get(key);
+    public static ItemStack getHead(String base64) {
+        return cache.get(base64);
     }
 
-    public static void put(String key, ItemStack template) {
-        if (key == null || template == null) return;
-        CACHE.put(key, template);
-    }
-
-    public static boolean contains(String key) {
-        return CACHE.containsKey(key);
+    public static void cacheHead(String base64, ItemStack head) {
+        if (base64 != null && head != null) {
+            cache.put(base64, head.clone());
+        }
     }
 
     public static void clear() {
-        CACHE.clear();
+        cache.clear();
+    }
+
+    public static boolean has(String base64) {
+        return cache.containsKey(base64);
     }
 }

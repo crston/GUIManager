@@ -113,6 +113,7 @@ public final class GUIManager extends JavaPlugin {
         }
         getLogger().info("Saving all GUI data before disable");
         saveGuisSync();
+        AsyncSaver.shutdown();
         HeadCache.clear();
         getLogger().info("GUIManager disabled");
     }

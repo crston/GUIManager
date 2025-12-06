@@ -11,6 +11,8 @@ gui_already_exist: "&cA GUI with ID '{id}' already exists."
 
 # Command related messages
 command:
+  unknown_command: "&cUnknown command. Type /gui for help."
+
   help:
     header: "--- GUIManager Help ---"
     create: "/gui create <id> <lines> <title>"
@@ -22,7 +24,7 @@ command:
     edittitle: "/gui edittitle <id> <title> - (GUI Title Change)"
     editid: "/gui editid <id> <new_id> - (GUI ID Change)"
     editsize: "/gui editsize <id> <lines> - (GUI Size Change)"
-    import: "/gui import <guiplus> - (Import from GUIPlus)"
+    import: "/gui import <deluxemenus|guiplus> [file] - (Import GUIs)"
     open: "/gui open <id> [player]"
 
   create:
@@ -30,16 +32,21 @@ command:
     invalid_lines: "&cLines must be a number between 1 and 6."
     success: "&aGUI '{id}' created."
     edit_mode: "&eEntering edit mode for the new GUI."
+    gui_exists: "&cA GUI with that ID already exists: {id}"
+    invalid_number: "&cInvalid number format."
+    invalid_rows: "&cRows must be between 1 and 6."
 
   delete:
     usage: "&cUsage: /gui delete <id>"
     success: "&aGUI '{id}' has been deleted."
+    gui_not_found: "&cGUI '{id}' not found."
 
   edit:
     usage: "&cUsage: /gui edit <id> [slot]"
     no_item: "&cThere is no item in slot {slot} to edit."
     invalid_slot: "&cInvalid slot number provided. Opening main editor instead."
     main_editor_info: "&aNow editing item layout for '{id}'."
+    edit_mode: "&aEditing GUI: {id}"
 
   edittitle:
     usage: "&cUsage: /gui edittitle <id> <new_title>"
@@ -65,14 +72,16 @@ command:
 
   reload:
     success: "&aGUIManager config reloaded."
+    reloaded: "&aPlugin configuration reloaded."
 
   import:
-    usage: "&cUsage: /gui import <plugin>"
-    supported: "&eSupported plugins: guiplus"
+    usage: "&cUsage: /gui import <deluxemenus|guiplus> [file]"
+    supported: "&eSupported plugins: deluxemenus, guiplus"
     unsupported: "&cUnsupported plugin for import: {plugin}"
 
   open:
     usage: "&cUsage: /gui open <id> [player]"
+    usage_open: "&cUsage: /gui open <id> [player]"
     success_other: "&aOpened GUI '{id}' for {player}."
 
 # Editor related messages
@@ -85,6 +94,13 @@ editor:
   require_vault: "&cThis feature requires the Vault plugin."
   lore_removed: "&aLore line {line} removed."
 
+  canceled: "&eEditing cancelled."
+  name_set: "&aDisplay name changed to: &f{name}"
+  lore_added: "&aLore line added."
+  lore_edited: "&aLore line edited."
+  number_set: "&aValue set to &f{value}"
+  invalid_number: "&cInvalid number format."
+
   prompt:
     cooldown: "&aEnter the cooldown in seconds (e.g., 10.5). Type '0' or 'delete' to remove."
     name: "&aEnter the new item name."
@@ -92,6 +108,7 @@ editor:
     model_id: "&aEnter the Item Model ID string. Type 'delete' to remove."
     lore_add: "&aEnter the new lore line to add."
     lore_edit: "&aEnter the new text for this lore line."
+    skull: "&aEnter the player name or Base64 texture string." # 추가됨
     money: "&aEnter the money cost. Type '0' or 'delete' to remove."
     general: "&aEnter the text for the setting. Type 'delete' to remove."
     cancel: "&eType 'cancel' to abort."
