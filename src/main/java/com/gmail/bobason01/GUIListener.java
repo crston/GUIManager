@@ -87,7 +87,7 @@ public class GUIListener implements Listener {
             try {
                 if (costs.isEmpty()) {
                     meta.getPersistentDataContainer().remove(key);
-                    player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set") + " (Cleared)");
+                    player.sendMessage(plugin.getLanguageManager().getMessage("editor.cost_set") + " Cleared");
                 } else {
                     String serialized = ItemSerialization.itemStackArrayToBase64(costs.toArray(new ItemStack[0]));
                     meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, serialized);
@@ -110,7 +110,6 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> ItemEditor.open(player, session));
 
         } else if (title.startsWith(ItemEditor.TITLE_PREFIX)) {
-            // 채팅 세션이나 코스트 설정 중이면 자동 저장을 스킵 (데이터 덮어쓰기 방지)
             if (plugin.hasChatSession(player) || plugin.isSettingCost(player)) {
                 return;
             }
@@ -167,7 +166,6 @@ public class GUIListener implements Listener {
         String title = event.getView().getTitle();
         Inventory editorInv = event.getView().getTopInventory();
 
-        // 현재 작업 중인 아이템 (Slot 4)
         ItemStack currentIcon = editorInv.getItem(4);
         if (currentIcon == null) return;
 
@@ -186,7 +184,6 @@ public class GUIListener implements Listener {
         String guiName = title.replace(ItemEditor.TITLE_PREFIX, "").split(" ")[0];
         int itemSlot = Integer.parseInt(title.replaceAll(".*Slot (\\d+).*", "$1"));
 
-        // 세션 생성 시 현재 눈에 보이는 최신 아이템(Clone)을 기반으로 생성
         EditSession session = new EditSession(guiName, itemSlot, currentIcon.clone());
 
         ItemStack pageArrow = editorInv.getItem(53);
@@ -197,16 +194,13 @@ public class GUIListener implements Listener {
             }
         }
 
-        // 저장 및 나가기 (Slot 8) 처리 수정
         if (slot == 8) {
             GUI gui = plugin.getGui(session.getGuiName());
             if (gui != null) {
-                // 1. 현재 에디터 상태를 GUI 객체에 먼저 저장
                 gui.setItem(session.getSlot(), currentIcon);
                 plugin.saveGui(session.getGuiName());
                 player.sendMessage(plugin.getLanguageManager().getMessage("editor.item_saved"));
 
-                // 2. 에디트 모드 전환 및 메인 GUI 열기
                 plugin.setEditMode(player, session.getGuiName());
                 player.openInventory(gui.getInventory());
             }
@@ -263,15 +257,39 @@ public class GUIListener implements Listener {
     }
 
     private void handleNormalGuiClick(InventoryClickEvent event, Player player) {
-        String title = event.getView().getTitle();
-        String guiId = plugin.getGuiIdByTitle(title);
-        if (guiId == null) return;
+        Inventory topInv = event.getView().getTopInventory();
 
-        event.setCancelled(true);
-        ItemStack item = event.getCurrentItem();
-        if (item == null) return;
+        if (topInv.getHolder() instanceof GUIHolder) {
+            GUIHolder holder = (GUIHolder) topInv.getHolder();
+            String guiId = holder.getGuiId();
 
-        actionExecutor.execute(player, guiId, event.getSlot(), item, event.getClick());
+            if (event.getClickedInventory() != topInv && event.getAction().toString().contains("MOVE_TO_OTHER_INVENTORY")) {
+                event.setCancelled(true);
+                return;
+            }
+
+            if (event.getClickedInventory() != topInv) {
+                return;
+            }
+
+            event.setCancelled(true);
+
+            ItemStack item = event.getCurrentItem();
+            if (item == null || item.getType() == Material.AIR) return;
+
+            actionExecutor.execute(player, guiId, event.getSlot(), item, event.getClick());
+        } else {
+            String title = event.getView().getTitle();
+            String guiId = plugin.findGuiIdByTitle(title);
+
+            if (guiId == null) return;
+
+            event.setCancelled(true);
+            ItemStack item = event.getCurrentItem();
+            if (item == null) return;
+
+            actionExecutor.execute(player, guiId, event.getSlot(), item, event.getClick());
+        }
     }
 
     private void openItemCostEditor(Player player, EditSession session) {
@@ -301,7 +319,6 @@ public class GUIListener implements Listener {
         int slot = event.getSlot();
 
         if (clickedItem.getType() == Material.WRITABLE_BOOK) {
-            // [FIX] 로어 추가 시 EditType 설정 및 채팅 세션 시작
             session.setEditType(EditSession.EditType.LORE_ADD);
             plugin.startChatSession(player, session);
             player.closeInventory();
@@ -322,44 +339,6 @@ public class GUIListener implements Listener {
         }
     }
 
-    public boolean checkAndTakeCosts(Player player, PersistentDataContainer pdc, NamespacedKey moneyCostKey, NamespacedKey itemCostKey) {
-        if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
-            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
-            if (serializedCosts != null && !serializedCosts.isEmpty()) {
-                try {
-                    ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(serializedCosts);
-                    if (!hasItems(player.getInventory(), costs)) {
-                        player.sendMessage(plugin.getLanguageManager().getMessage("check.no_item"));
-                        return false;
-                    }
-                } catch (Exception e) {
-                    player.sendMessage(plugin.getLanguageManager().getMessage("check.error_item"));
-                    return false;
-                }
-            }
-        }
-        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
-            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
-            if (cost > 0 && !GUIManager.econ.has(player, cost)) {
-                player.sendMessage(plugin.getLanguageManager().getMessage("check.no_money"));
-                return false;
-            }
-        }
-        if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
-            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
-            if (serializedCosts != null && !serializedCosts.isEmpty()) {
-                try {
-                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts), plugin);
-                } catch (Exception ignored) {}
-            }
-        }
-        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
-            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
-            if (cost > 0) GUIManager.econ.withdrawPlayer(player, cost);
-        }
-        return true;
-    }
-
     private EditSession.EditType getEditTypeFromSlot(int slot) {
         switch (slot) {
             case 0: return EditSession.EditType.NAME;
@@ -368,6 +347,7 @@ public class GUIListener implements Listener {
             case 3: return EditSession.EditType.ITEM_MODEL_ID;
             case 5: return EditSession.EditType.REQUIRE_TARGET;
             case 6: return EditSession.EditType.PERMISSION_MESSAGE;
+            case 7: return EditSession.EditType.SKULL;
             case 9: return EditSession.EditType.COMMAND_LEFT;
             case 10: return EditSession.EditType.MONEY_COST_LEFT;
             case 11: return EditSession.EditType.COST_LEFT;
@@ -514,6 +494,9 @@ public class GUIListener implements Listener {
                 case LORE_EDIT:
                     msg = plugin.getLanguageManager().getMessage("editor.prompt.lore_edit");
                     break;
+                case SKULL:
+                    msg = plugin.getLanguageManager().getMessage("editor.prompt.skull", "Enter player name or Base64 texture");
+                    break;
                 case MONEY_COST_LEFT: case MONEY_COST_RIGHT: case MONEY_COST_SHIFT_LEFT: case MONEY_COST_SHIFT_RIGHT:
                 case MONEY_COST_F: case MONEY_COST_SHIFT_F: case MONEY_COST_Q: case MONEY_COST_SHIFT_Q:
                     msg = plugin.getLanguageManager().getMessage("editor.prompt.money");
@@ -532,6 +515,44 @@ public class GUIListener implements Listener {
         if (id == null) return false;
         GUI gui = plugin.getGui(id);
         return gui != null && gui.getTitle().equals(title);
+    }
+
+    public boolean checkAndTakeCosts(Player player, PersistentDataContainer pdc, NamespacedKey moneyCostKey, NamespacedKey itemCostKey) {
+        if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
+            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
+            if (serializedCosts != null && !serializedCosts.isEmpty()) {
+                try {
+                    ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(serializedCosts);
+                    if (!hasItems(player.getInventory(), costs)) {
+                        player.sendMessage(plugin.getLanguageManager().getMessage("check.no_item"));
+                        return false;
+                    }
+                } catch (Exception e) {
+                    player.sendMessage(plugin.getLanguageManager().getMessage("check.error_item"));
+                    return false;
+                }
+            }
+        }
+        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
+            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
+            if (cost > 0 && !GUIManager.econ.has(player, cost)) {
+                player.sendMessage(plugin.getLanguageManager().getMessage("check.no_money"));
+                return false;
+            }
+        }
+        if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
+            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
+            if (serializedCosts != null && !serializedCosts.isEmpty()) {
+                try {
+                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts), plugin);
+                } catch (Exception ignored) {}
+            }
+        }
+        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
+            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
+            if (cost > 0) GUIManager.econ.withdrawPlayer(player, cost);
+        }
+        return true;
     }
 
     private boolean hasItems(Inventory inventory, ItemStack[] requiredItems) {

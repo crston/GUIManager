@@ -1,124 +1,90 @@
 package com.gmail.bobason01;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.profile.PlayerProfile;
+import org.bukkit.profile.PlayerTextures;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Locale;
 import java.util.UUID;
 
-/**
- * HeadUtils — Compatible with Spigot, Paper, Purpur 1.21+
- * Uses new ResolvableProfile system without network access
- */
-public final class HeadUtils {
+public class HeadUtils {
 
-    private HeadUtils() {}
+    // 텍스처 URL이 포함된 Base64 문자열인지 확인
+    public static boolean isTextureMaterialString(String str) {
+        return str != null && str.length() > 20 && (str.startsWith("eyJ0ZXh0dXJlcy") || str.contains("textures.minecraft.net"));
+    }
 
-    private static boolean ready = false;
-    private static Field profileField;
-    private static Constructor<?> resolvableProfileCtor;
-    private static Constructor<?> gameProfileCtor;
-    private static Method getProperties;
-    private static Method putProperty;
-    private static Constructor<?> propertyCtor;
+    public static ItemStack createHeadBySpec(String materialStr, String skullField) {
+        if (skullField != null && !skullField.isEmpty()) {
+            if (skullField.length() > 16) {
+                return createHeadByBase64(skullField);
+            } else {
+                return createHeadByName(skullField);
+            }
+        }
+        if (isTextureMaterialString(materialStr)) {
+            return createHeadByBase64(materialStr);
+        }
+        return new ItemStack(Material.PLAYER_HEAD);
+    }
 
-    private static void ensureReady() throws Exception {
-        if (ready) return;
+    public static ItemStack createHeadByName(String name) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta != null) {
+            meta.setOwner(name); // Deprecated지만 간단한 구현을 위해 사용. 최신 버전은 setOwningPlayer 권장
+            head.setItemMeta(meta);
+        }
+        return head;
+    }
+
+    public static ItemStack createHeadByBase64(String base64) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        if (base64 == null || base64.isEmpty()) return head;
+
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta == null) return head;
+
+        // Base64가 전체 JSON이 아니라 URL만 있는 경우 등 처리 (필요시)
+        // 편의상 URL이 직접 들어온 경우 처리
+        if (base64.startsWith("http")) {
+            String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + base64 + "\"}}}";
+            base64 = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        }
+
         try {
-            Class<?> craftMeta = Class.forName("org.bukkit.craftbukkit.inventory.CraftMetaSkull");
-            profileField = craftMeta.getDeclaredField("profile");
-            profileField.setAccessible(true);
+            PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
+            PlayerTextures textures = profile.getTextures();
 
-            // NMS / Authlib classes
-            Class<?> resolvableProfileClass = Class.forName("net.minecraft.world.item.component.ResolvableProfile");
-            Class<?> gameProfileClass = Class.forName("com.mojang.authlib.GameProfile");
-            Class<?> propertyMapClass = Class.forName("com.mojang.authlib.properties.PropertyMap");
-            Class<?> propertyClass = Class.forName("com.mojang.authlib.properties.Property");
-
-            // Constructors and methods
-            gameProfileCtor = gameProfileClass.getConstructor(UUID.class, String.class);
-            getProperties = gameProfileClass.getMethod("getProperties");
-            propertyCtor = propertyClass.getConstructor(String.class, String.class);
-            putProperty = propertyMapClass.getMethod("put", Object.class, Object.class);
-            resolvableProfileCtor = resolvableProfileClass.getConstructor(gameProfileClass);
-
-            ready = true;
-            System.out.println("[GUIManager] Using 1.21+ ResolvableProfile injection.");
-        } catch (Throwable t) {
-            throw new RuntimeException("HeadUtils init failed", t);
+            String decoded = new String(Base64.getDecoder().decode(base64));
+            String url = extractUrlFromDecodedJson(decoded);
+            if (url != null) {
+                textures.setSkin(new URL(url));
+                profile.setTextures(textures);
+                meta.setOwnerProfile(profile);
+            }
+        } catch (Exception e) {
+            // Base64 디코딩 실패 또는 URL 오류 시 무시 (기본 머리 반환)
         }
+
+        head.setItemMeta(meta);
+        return head;
     }
 
-    public static ItemStack createHeadBySpec(String materialField, String skullField) {
-        String spec = skullField != null && !skullField.isEmpty() ? skullField : materialField;
-        if (spec == null || spec.isEmpty()) return new ItemStack(Material.STONE);
-
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+    private static String extractUrlFromDecodedJson(String json) {
         try {
-            ensureReady();
-            SkullMeta meta = (SkullMeta) item.getItemMeta();
-            if (meta == null) return item;
-
-            String base64 = toBase64IfNeeded(spec);
-            if (base64 == null) return item;
-
-            Object resolvableProfile = createResolvableProfile(base64);
-            profileField.set(meta, resolvableProfile);
-
-            item.setItemMeta(meta);
-        } catch (Throwable t) {
-            System.out.println("[GUIManager] HeadUtils failed offline: " + t.getMessage());
+            // Simple parsing logic using Gson
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            return obj.getAsJsonObject("textures").getAsJsonObject("SKIN").get("url").getAsString();
+        } catch (Exception e) {
+            return null;
         }
-        return item;
-    }
-
-    private static Object createResolvableProfile(String base64) throws Exception {
-        UUID id = UUID.nameUUIDFromBytes(base64.getBytes(StandardCharsets.UTF_8));
-        Object gameProfile = gameProfileCtor.newInstance(id, "Offline_" + Integer.toHexString(base64.hashCode()));
-        Object props = getProperties.invoke(gameProfile);
-        Object texture = propertyCtor.newInstance("textures", base64);
-        putProperty.invoke(props, "textures", texture);
-        return resolvableProfileCtor.newInstance(gameProfile);
-    }
-
-    private static String toBase64IfNeeded(String spec) {
-        if (spec == null || spec.isEmpty()) return null;
-        String s = spec.trim();
-
-        if (s.toLowerCase(Locale.ROOT).startsWith("base64:"))
-            return s.substring("base64:".length()).trim();
-
-        if (s.toLowerCase(Locale.ROOT).startsWith("texture-")) {
-            String hash = s.substring("texture-".length()).trim();
-            return encodeToBase64("http://textures.minecraft.net/texture/" + hash);
-        }
-
-        if (s.toLowerCase(Locale.ROOT).startsWith("url:")) {
-            String url = s.substring("url:".length()).trim();
-            return encodeToBase64(url);
-        }
-
-        if (s.startsWith("http://") || s.startsWith("https://")) {
-            return encodeToBase64(s);
-        }
-
-        return null;
-    }
-
-    private static String encodeToBase64(String url) {
-        String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + url + "\"}}}";
-        return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
-    }
-
-    public static boolean isTextureMaterialString(String s) {
-        if (s == null) return false;
-        String v = s.trim().toLowerCase(Locale.ROOT);
-        return v.startsWith("texture-") || v.startsWith("url:") || v.startsWith("base64:");
     }
 }

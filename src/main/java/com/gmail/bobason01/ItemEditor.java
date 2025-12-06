@@ -40,6 +40,7 @@ public final class ItemEditor {
         String title = TITLE_PREFIX + session.getGuiName() + " (Slot " + session.getSlot() + ")";
         Inventory inv = Bukkit.createInventory(null, 54, title);
 
+        // Row 1: General Settings
         inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§b(Click to set via chat)"));
         inv.setItem(1, createModelDataItem(session));
         inv.setItem(2, createDamageItem(session));
@@ -47,9 +48,8 @@ public final class ItemEditor {
         inv.setItem(4, session.getItem());
         inv.setItem(5, createTargetToggleItem(session));
         inv.setItem(6, createOptionItem(Material.PAPER, "§eNo-Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default message", PersistentDataType.STRING));
+        inv.setItem(7, createOptionItem(Material.PLAYER_HEAD, "§eSet Skull Texture", "§b(Click to set Name or Base64)"));
         inv.setItem(8, createOptionItem(Material.OAK_DOOR, "§cBack", "§7Returns to the GUI editor."));
-
-        // 각 줄마다 정확한 EditType 세트를 전달합니다.
 
         // Row 2: Left / Shift+Left
         createClickActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click",
@@ -79,7 +79,6 @@ public final class ItemEditor {
         player.openInventory(inv);
     }
 
-    // [수정됨] 모든 타입(비용, 쿨타임 등)을 인자로 받아 처리하도록 변경
     private static void createClickActionRow(Inventory inv, int startSlot, String name1, String name2,
                                              EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType keepOpen1, EditSession.EditType cd1, EditSession.EditType exec1,
                                              EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType keepOpen2, EditSession.EditType cd2, EditSession.EditType exec2,
@@ -95,7 +94,6 @@ public final class ItemEditor {
         inv.setItem(startSlot + 8, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(keepOpen2)));
     }
 
-    // 모든 타입(비용, 권한 등)을 인자로 받아 처리하도록 변경
     private static void createKeybindActionRow(Inventory inv, int startSlot, String name1, String name2,
                                                EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType perm1, EditSession.EditType cd1, EditSession.EditType exec1,
                                                EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType perm2, EditSession.EditType cd2, EditSession.EditType exec2,

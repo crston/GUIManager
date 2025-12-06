@@ -65,6 +65,7 @@ public class EditSession {
         CUSTOM_MODEL_DATA,
         ITEM_DAMAGE,
         ITEM_MODEL_ID,
+        SKULL,
 
         // General Options
         REQUIRE_TARGET,
@@ -107,7 +108,7 @@ public class EditSession {
         EXECUTOR_F,
         MONEY_COST_F,
         COST_F,
-        PERMISSION_F, // Specific permission for this action
+        PERMISSION_F,
         COOLDOWN_F,
 
         // --- Action: Shift + F ---
