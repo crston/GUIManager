@@ -48,19 +48,6 @@ command:
     main_editor_info: "&aNow editing item layout for '{id}'."
     edit_mode: "&aEditing GUI: {id}"
 
-  edittitle:
-    usage: "&cUsage: /gui edittitle <id> <new_title>"
-    success: "&aGUI '{id}' title updated."
-
-  editid:
-    usage: "&cUsage: /gui editid <id> <new_id>"
-    success: "&aGUI ID '{old_id}' changed to '{new_id}'."
-
-  editsize:
-    usage: "&cUsage: /gui editsize <id> <lines>"
-    invalid_lines: "&cLines must be a number between 1 and 6."
-    success: "&aGUI '{id}' size has been updated to {lines} lines ({slots} slots)."
-
   copy:
     usage: "&cUsage: /gui copy <original_id> <new_id>"
     original_not_exist: "&cOriginal GUI '{id}' does not exist."

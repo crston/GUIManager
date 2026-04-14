@@ -344,7 +344,6 @@ public class GUIListener implements Listener {
             case 0: return EditSession.EditType.NAME;
             case 1: return EditSession.EditType.CUSTOM_MODEL_DATA;
             case 2: return EditSession.EditType.ITEM_DAMAGE;
-            case 3: return EditSession.EditType.ITEM_MODEL_ID;
             case 5: return EditSession.EditType.REQUIRE_TARGET;
             case 6: return EditSession.EditType.PERMISSION_MESSAGE;
             case 7: return EditSession.EditType.SKULL;
@@ -485,9 +484,6 @@ public class GUIListener implements Listener {
                 case ITEM_DAMAGE:
                     msg = plugin.getLanguageManager().getMessage("editor.prompt.number");
                     break;
-                case ITEM_MODEL_ID:
-                    msg = plugin.getLanguageManager().getMessage("editor.prompt.model_id");
-                    break;
                 case LORE_ADD:
                     msg = plugin.getLanguageManager().getMessage("editor.prompt.lore_add");
                     break;
@@ -517,42 +513,16 @@ public class GUIListener implements Listener {
         return gui != null && gui.getTitle().equals(title);
     }
 
+    // 최적화된 구조에 맞춰 우회하도록 변경됨
     public boolean checkAndTakeCosts(Player player, PersistentDataContainer pdc, NamespacedKey moneyCostKey, NamespacedKey itemCostKey) {
+        double money = pdc.has(moneyCostKey, PersistentDataType.DOUBLE) ? pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0) : 0.0;
+        ItemStack[] parsedCosts = null;
         if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
-            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
-            if (serializedCosts != null && !serializedCosts.isEmpty()) {
-                try {
-                    ItemStack[] costs = ItemSerialization.itemStackArrayFromBase64(serializedCosts);
-                    if (!hasItems(player.getInventory(), costs)) {
-                        player.sendMessage(plugin.getLanguageManager().getMessage("check.no_item"));
-                        return false;
-                    }
-                } catch (Exception e) {
-                    player.sendMessage(plugin.getLanguageManager().getMessage("check.error_item"));
-                    return false;
-                }
-            }
+            try {
+                parsedCosts = ItemSerialization.itemStackArrayFromBase64(pdc.get(itemCostKey, PersistentDataType.STRING));
+            } catch (Exception ignored) {}
         }
-        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
-            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
-            if (cost > 0 && !GUIManager.econ.has(player, cost)) {
-                player.sendMessage(plugin.getLanguageManager().getMessage("check.no_money"));
-                return false;
-            }
-        }
-        if (pdc.has(itemCostKey, PersistentDataType.STRING)) {
-            String serializedCosts = pdc.get(itemCostKey, PersistentDataType.STRING);
-            if (serializedCosts != null && !serializedCosts.isEmpty()) {
-                try {
-                    removeStaticItems(player, ItemSerialization.itemStackArrayFromBase64(serializedCosts), plugin);
-                } catch (Exception ignored) {}
-            }
-        }
-        if (GUIManager.econ != null && pdc.has(moneyCostKey, PersistentDataType.DOUBLE)) {
-            double cost = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
-            if (cost > 0) GUIManager.econ.withdrawPlayer(player, cost);
-        }
-        return true;
+        return CostBridge.checkAndTake(player, plugin, money, parsedCosts);
     }
 
     private boolean hasItems(Inventory inventory, ItemStack[] requiredItems) {
@@ -645,12 +615,30 @@ public class GUIListener implements Listener {
         player.updateInventory();
     }
 
+    // 최적화된 구조에 맞춰 우회하도록 변경됨
     public boolean checkAndTakeCosts(Player player,
                                      PersistentDataContainer pdc,
                                      NamespacedKey moneyCostKey,
                                      NamespacedKey itemCostKey,
                                      double moneyOverride,
                                      String itemCostBase64) {
-        return CostBridge.checkAndTake(player, plugin, pdc, moneyCostKey, itemCostKey, moneyOverride, itemCostBase64);
+
+        double money = moneyOverride;
+        if (money <= 0 && pdc != null && moneyCostKey != null) {
+            money = pdc.getOrDefault(moneyCostKey, PersistentDataType.DOUBLE, 0.0);
+        }
+
+        ItemStack[] parsedCosts = null;
+        if (itemCostBase64 != null && !itemCostBase64.isEmpty()) {
+            try {
+                parsedCosts = ItemSerialization.itemStackArrayFromBase64(itemCostBase64);
+            } catch (Exception ignored) {}
+        } else if (pdc != null && itemCostKey != null && pdc.has(itemCostKey, PersistentDataType.STRING)) {
+            try {
+                parsedCosts = ItemSerialization.itemStackArrayFromBase64(pdc.get(itemCostKey, PersistentDataType.STRING));
+            } catch (Exception ignored) {}
+        }
+
+        return CostBridge.checkAndTake(player, plugin, money, parsedCosts);
     }
 }

@@ -1,6 +1,7 @@
 package com.gmail.bobason01;
 
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ public final class GuiItemMeta {
         public String command;
         public String permission;
         public String itemCostBase64;
+        public ItemStack[] parsedItemCosts; // 역직렬화된 아이템 캐싱
         public double moneyCost;
         public double cooldownSeconds;
         public GUIManager.ExecutorType executor;

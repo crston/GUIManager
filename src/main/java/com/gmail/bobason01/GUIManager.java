@@ -32,21 +32,17 @@ public final class GUIManager extends JavaPlugin {
     private BukkitTask autoSaveTask;
     private BukkitTask guiUpdateTask;
     private LanguageManager languageManager;
+    private final GuiMetaCache metaCache = new GuiMetaCache();
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    // Namespaced Keys
     public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_DAMAGE, KEY_ITEM_MODEL_ID;
-
     public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
     public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
-
     public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT, KEY_KEEP_OPEN_RIGHT;
     public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT, KEY_KEEP_OPEN_SHIFT_RIGHT;
-
     public static NamespacedKey KEY_COMMAND_F, KEY_PERMISSION_F, KEY_COST_F, KEY_MONEY_COST_F, KEY_COOLDOWN_F, KEY_EXECUTOR_F;
     public static NamespacedKey KEY_COMMAND_SHIFT_F, KEY_PERMISSION_SHIFT_F, KEY_COST_SHIFT_F, KEY_MONEY_COST_SHIFT_F, KEY_COOLDOWN_SHIFT_F, KEY_EXECUTOR_SHIFT_F;
-
     public static NamespacedKey KEY_COMMAND_Q, KEY_PERMISSION_Q, KEY_COST_Q, KEY_MONEY_COST_Q, KEY_COOLDOWN_Q, KEY_EXECUTOR_Q;
     public static NamespacedKey KEY_COMMAND_SHIFT_Q, KEY_PERMISSION_SHIFT_Q, KEY_COST_SHIFT_Q, KEY_MONEY_COST_SHIFT_Q, KEY_COOLDOWN_SHIFT_Q, KEY_EXECUTOR_SHIFT_Q;
 
@@ -71,8 +67,6 @@ public final class GUIManager extends JavaPlugin {
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             this.placeholderApiEnabled = true;
             getLogger().info("PlaceholderAPI found Placeholders enabled");
-        } else {
-            getLogger().info("PlaceholderAPI not found Placeholders disabled");
         }
 
         initializeKeys();
@@ -105,17 +99,29 @@ public final class GUIManager extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (this.autoSaveTask != null && !this.autoSaveTask.isCancelled()) {
-            this.autoSaveTask.cancel();
-        }
-        if (this.guiUpdateTask != null && !this.guiUpdateTask.isCancelled()) {
-            this.guiUpdateTask.cancel();
-        }
-        getLogger().info("Saving all GUI data before disable");
+        if (this.autoSaveTask != null) this.autoSaveTask.cancel();
+        if (this.guiUpdateTask != null) this.guiUpdateTask.cancel();
         saveGuisSync();
         AsyncSaver.shutdown();
         HeadCache.clear();
+        metaCache.clearAll();
         getLogger().info("GUIManager disabled");
+    }
+
+    public GuiMetaCache getMetaCache() {
+        return metaCache;
+    }
+
+    private boolean hasPlaceholders(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta.hasDisplayName() && meta.getDisplayName().contains("%")) return true;
+        if (meta.hasLore()) {
+            for (String line : meta.getLore()) {
+                if (line.contains("%")) return true;
+            }
+        }
+        return false;
     }
 
     private void startGuiUpdateTask() {
@@ -123,9 +129,7 @@ public final class GUIManager extends JavaPlugin {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 Inventory openInv = player.getOpenInventory().getTopInventory();
 
-                if (openInv == null || !(openInv.getHolder() instanceof GUIHolder)) {
-                    continue;
-                }
+                if (openInv == null || !(openInv.getHolder() instanceof GUIHolder)) continue;
 
                 GUIHolder holder = (GUIHolder) openInv.getHolder();
                 String guiId = holder.getGuiId();
@@ -138,7 +142,8 @@ public final class GUIManager extends JavaPlugin {
                 for (Map.Entry<Integer, ItemStack> entry : gui.getItems().entrySet()) {
                     int slot = entry.getKey();
                     ItemStack templateItem = entry.getValue();
-                    if (templateItem == null) continue;
+
+                    if (templateItem == null || !hasPlaceholders(templateItem)) continue;
 
                     ItemStack updatedItem = applyPlaceholders(templateItem.clone(), player);
                     ItemStack currentItem = openInv.getItem(slot);
@@ -187,28 +192,17 @@ public final class GUIManager extends JavaPlugin {
             }
         }
 
-        if (changed) {
-            item.setItemMeta(meta);
-        }
+        if (changed) item.setItemMeta(meta);
         return item;
     }
 
-    public static GUIManager getInstance() {
-        return instance;
-    }
-
-    public LanguageManager getLanguageManager() {
-        return languageManager;
-    }
+    public static GUIManager getInstance() { return instance; }
+    public LanguageManager getLanguageManager() { return languageManager; }
 
     private boolean setupEconomy() {
-        if (getServer().getPluginManager().getPlugin("Vault") == null) {
-            return false;
-        }
+        if (getServer().getPluginManager().getPlugin("Vault") == null) return false;
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) {
-            return false;
-        }
+        if (rsp == null) return false;
         econ = rsp.getProvider();
         return econ != null;
     }
@@ -296,9 +290,7 @@ public final class GUIManager extends JavaPlugin {
 
     public Inventory getPlayerSpecificInventory(Player player, String guiId) {
         GUI originalGui = getGui(guiId);
-        if (originalGui == null) {
-            return null;
-        }
+        if (originalGui == null) return null;
 
         String title = originalGui.getTitle();
         if (placeholderApiEnabled) {
@@ -312,11 +304,9 @@ public final class GUIManager extends JavaPlugin {
         for (Map.Entry<Integer, ItemStack> entry : originalGui.getItems().entrySet()) {
             ItemStack originalItem = entry.getValue();
             if (originalItem == null) continue;
-
             ItemStack playerItem = applyPlaceholders(originalItem.clone(), player);
             playerInv.setItem(entry.getKey(), playerItem);
         }
-
         return playerInv;
     }
 
@@ -342,15 +332,14 @@ public final class GUIManager extends JavaPlugin {
 
     public String findGuiIdByTitle(String title) {
         for (Map.Entry<String, GUI> entry : guis.entrySet()) {
-            if (entry.getValue().getTitle().equals(title)) {
-                return entry.getKey();
-            }
+            if (entry.getValue().getTitle().equals(title)) return entry.getKey();
         }
         return null;
     }
 
     public void addGui(String id, GUI gui) {
         guis.put(id.toLowerCase(), gui);
+        metaCache.buildForGui(id, gui, this);
     }
 
     public void createGui(String id, int rows, String title) {
@@ -360,11 +349,24 @@ public final class GUIManager extends JavaPlugin {
         saveGui(id);
     }
 
+    public void copyGui(String sourceId, String targetId) {
+        GUI sourceGui = getGui(sourceId);
+        if (sourceGui == null) return;
+
+        GUI targetGui = new GUI(sourceGui.getTitle(), sourceGui.getSize());
+        targetGui.setId(targetId);
+
+        sourceGui.getItems().forEach((slot, item) -> {
+            if (item != null) targetGui.setItem(slot, item.clone());
+        });
+
+        addGui(targetId, targetGui);
+        saveGui(targetId);
+    }
+
     public void updateGuiTitle(String id, String newTitle) {
         GUI gui = getGui(id);
-        if (gui != null) {
-            gui.setTitle(newTitle);
-        }
+        if (gui != null) gui.setTitle(newTitle);
     }
 
     public void updateGuiId(String oldId, String newId) {
@@ -372,37 +374,32 @@ public final class GUIManager extends JavaPlugin {
         if (gui != null) {
             guis.put(newId.toLowerCase(), gui);
             gui.setId(newId);
+            metaCache.rename(oldId, newId);
 
             File oldFile = new File(guisFolder, oldId.toLowerCase() + ".yml");
-            if (oldFile.exists()) {
-                oldFile.delete();
-            }
+            if (oldFile.exists()) oldFile.delete();
         }
     }
 
     public void updateGuiSize(String id, int newLines) {
         GUI gui = getGui(id);
-        if (gui != null) {
-            gui.setSize(newLines * 9);
-        }
+        if (gui != null) gui.setSize(newLines * 9);
     }
 
     public void removeGui(String id) {
         GUI gui = guis.remove(id.toLowerCase());
         if (gui != null) {
+            metaCache.remove(id);
             File file = new File(guisFolder, id.toLowerCase() + ".yml");
-            if (file.exists()) {
-                file.delete();
-            }
+            if (file.exists()) file.delete();
         }
     }
 
     public void loadGuis() {
         guis.clear();
+        metaCache.clearAll();
 
-        if (!guisFolder.exists()) {
-            guisFolder.mkdirs();
-        }
+        if (!guisFolder.exists()) guisFolder.mkdirs();
         File[] files = guisFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (files == null) return;
 
@@ -430,14 +427,12 @@ public final class GUIManager extends JavaPlugin {
                                 ItemStack built = buildItemFromSpec(spec);
                                 if (built != null) gui.setItem(slot, built);
                             }
-                        } catch (Exception itemEx) {
-                            getLogger().warning("Error loading item in slot " + slotStr + " for GUI " + id + " " + itemEx.getMessage());
-                        }
+                        } catch (Exception itemEx) {}
                     }
                 }
                 addGui(id, gui);
             } catch (Exception guiEx) {
-                getLogger().log(Level.SEVERE, "Critical error loading GUI " + id + " " + guiEx.getMessage());
+                getLogger().log(Level.SEVERE, "Critical error loading GUI " + id, guiEx);
             }
         }
         getLogger().info("Loaded " + guis.size() + " GUIs from files");
@@ -473,22 +468,16 @@ public final class GUIManager extends JavaPlugin {
             }
 
             int cmd = spec.getInt("custom_model_data", spec.getInt("model", spec.getInt("model_data", -1)));
-            if (cmd >= 0) {
-                meta.setCustomModelData(cmd);
-            }
+            if (cmd >= 0) meta.setCustomModelData(cmd);
 
             int damage = spec.getInt("damage", -1);
             if (damage >= 0 && meta instanceof Damageable) {
-                try {
-                    ((Damageable) meta).setDamage(damage);
-                } catch (Throwable ignored) {}
+                try { ((Damageable) meta).setDamage(damage); } catch (Throwable ignored) {}
             }
 
             boolean hideFlags = spec.getBoolean("hide_flags", false);
             if (hideFlags) {
-                try {
-                    for (ItemFlag f : ItemFlag.values()) meta.addItemFlags(f);
-                } catch (Throwable ignored) {}
+                try { for (ItemFlag f : ItemFlag.values()) meta.addItemFlags(f); } catch (Throwable ignored) {}
             }
 
             item.setItemMeta(meta);
@@ -559,13 +548,8 @@ public final class GUIManager extends JavaPlugin {
 
     private Material matchMaterial(String name) {
         if (name == null) return null;
-        String s = name.trim().toUpperCase(Locale.ROOT);
-        s = s.replace("MINECRAFT:", "");
-        try {
-            return Material.valueOf(s);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+        String s = name.trim().toUpperCase(Locale.ROOT).replace("MINECRAFT:", "");
+        try { return Material.valueOf(s); } catch (IllegalArgumentException e) { return null; }
     }
 
     private String color(String s) {
@@ -575,6 +559,8 @@ public final class GUIManager extends JavaPlugin {
     public void saveGui(String id) {
         GUI gui = getGui(id);
         if (gui == null) return;
+
+        metaCache.buildForGui(id, gui, this);
 
         File file = new File(guisFolder, id.toLowerCase() + ".yml");
         FileConfiguration config = new YamlConfiguration();
@@ -601,11 +587,7 @@ public final class GUIManager extends JavaPlugin {
             config.set("size", gui.getSize());
             config.set("items", null);
             gui.getItems().forEach((slot, item) -> config.set("items." + slot, item));
-            try {
-                config.save(file);
-            } catch (IOException e) {
-                getLogger().log(Level.SEVERE, "Could not save GUI to file " + file.getName(), e);
-            }
+            try { config.save(file); } catch (IOException e) { getLogger().log(Level.SEVERE, "Could not save GUI to file " + file.getName(), e); }
         }
     }
 }

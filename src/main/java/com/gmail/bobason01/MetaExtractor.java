@@ -78,9 +78,22 @@ public final class MetaExtractor {
         GuiItemMeta.Variant v = meta.getOrCreate(key);
         v.command = pdc.get(cmd, PersistentDataType.STRING);
         v.permission = pdc.get(perm, PersistentDataType.STRING);
-        v.itemCostBase64 = pdc.get(itemCost, PersistentDataType.STRING);
         v.moneyCost = pdc.getOrDefault(moneyCost, PersistentDataType.DOUBLE, 0.0);
         v.cooldownSeconds = pdc.getOrDefault(cooldown, PersistentDataType.DOUBLE, 0.0);
+
+        String base64 = pdc.get(itemCost, PersistentDataType.STRING);
+        v.itemCostBase64 = base64;
+
+        if (base64 != null && !base64.isEmpty()) {
+            try {
+                v.parsedItemCosts = ItemSerialization.itemStackArrayFromBase64(base64);
+            } catch (Exception e) {
+                v.parsedItemCosts = new ItemStack[0];
+            }
+        } else {
+            v.parsedItemCosts = new ItemStack[0];
+        }
+
         String ex = pdc.get(exec, PersistentDataType.STRING);
         v.executor = ex != null ? safeExec(ex) : GUIManager.ExecutorType.PLAYER;
         if (keepOpen != null) v.keepOpen = pdc.getOrDefault(keepOpen, PersistentDataType.BYTE, (byte) 0) == 1;

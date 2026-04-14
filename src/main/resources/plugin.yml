@@ -1,5 +1,5 @@
 name: GUIManager
-version: 6.0
+version: 10.0
 main: com.gmail.bobason01.GUIManager
 api-version: 1.13
 author: crston
@@ -10,27 +10,47 @@ commands:
     usage: /gui <subcommand>
     aliases: [guim]
 permissions:
-  guimanager.admin:
-    description: Allows all admin commands for GUIManager.
+  guimanager.*:
+    description: Grants all permissions for GUIManager
     default: op
-  guimanager.admin.create:
-    description: Allows creating GUIs.
+    children:
+      guimanager.open: true
+      guimanager.open.others: true
+      guimanager.create: true
+      guimanager.edit: true
+      guimanager.delete: true
+      guimanager.list: true
+      guimanager.reload: true
+      guimanager.import: true
+
+  guimanager.open:
+    description: Allows opening a GUI
     default: op
-  guimanager.admin.delete:
-    description: Allows deleting GUIs.
+
+  guimanager.open.others:
+    description: Allows opening a GUI for other players
     default: op
-  guimanager.admin.edit:
-    description: Allows editing GUIs.
+
+  guimanager.create:
+    description: Allows creating a new GUI
     default: op
-  guimanager.admin.copy:
-    description: Allows copying GUIs.
+
+  guimanager.edit:
+    description: Allows editing an existing GUI
     default: op
-  guimanager.admin.list:
-    description: Allows listing GUIs.
+
+  guimanager.delete:
+    description: Allows deleting a GUI
     default: op
-  guimanager.admin.reload:
-    description: Allows reloading the config.
+
+  guimanager.list:
+    description: Allows listing all GUIs
     default: op
-  guimanager.open.*:
-    description: Allows opening any GUI.
+
+  guimanager.reload:
+    description: Allows reloading the plugin configuration
+    default: op
+
+  guimanager.import:
+    description: Allows importing menus from other plugins (GUIPlus, DeluxeMenus)
     default: op

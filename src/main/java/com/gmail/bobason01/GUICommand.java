@@ -38,6 +38,9 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             case "create":
                 handleCreate(sender, args);
                 break;
+            case "copy":
+                handleCopy(sender, args);
+                break;
             case "edit":
                 handleEdit(sender, args);
                 break;
@@ -76,9 +79,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         String type = args[1].toLowerCase();
 
         if (type.equals("guiplus")) {
-            // GUIPlus Importer 호출
             new GUIPlusImporter(plugin).importFromGUIPlus(sender);
-
         } else if (type.equals("deluxemenus")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(plugin.getLanguageManager().getMessage("player_only"));
@@ -93,13 +94,10 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             String fileName = args[2];
             if (!fileName.endsWith(".yml")) fileName += ".yml";
 
-            // DeluxeMenus/gui_menus 폴더 경로 추정
             File dmFolder = new File(plugin.getDataFolder().getParentFile(), "DeluxeMenus/gui_menus");
             File targetFile = new File(dmFolder, fileName);
 
-            // DeluxeMenus Importer 호출
             new DeluxeMenusImporter(plugin).importFromDeluxeMenus((Player) sender, targetFile);
-
         } else {
             sender.sendMessage(plugin.getLanguageManager().getMessage("command.import.unsupported", "{plugin}", type));
         }
@@ -150,7 +148,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(plugin.getLanguageManager().getMessage("command.open.success_other", "{id}", guiId, "{player}", target.getName()));
             }
         } else {
-            sender.sendMessage("§cFailed to create GUI inventory.");
+            sender.sendMessage("Failed to create GUI inventory.");
         }
     }
 
@@ -196,6 +194,45 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(plugin.getLanguageManager().getMessage("command.create.edit_mode"));
             plugin.setEditMode((Player) sender, id);
             ((Player) sender).openInventory(plugin.getGui(id).getInventory());
+        }
+    }
+
+    private void handleCopy(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("guimanager.copy")) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
+            return;
+        }
+
+        if (args.length < 3) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("command.copy.usage"));
+            return;
+        }
+
+        String sourceId = args[1];
+        String targetId = args[2];
+
+        GUI sourceGui = plugin.getGui(sourceId);
+        if (sourceGui == null) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("command.copy.original_not_exist", "{id}", sourceId));
+            return;
+        }
+
+        if (plugin.getGui(targetId) != null) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("command.create.gui_exists", "{id}", targetId));
+            return;
+        }
+
+        plugin.copyGui(sourceId, targetId);
+        sender.sendMessage(plugin.getLanguageManager().getMessage("command.copy.success", "{original_id}", sourceId, "{new_id}", targetId));
+
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            GUI newGui = plugin.getGui(targetId);
+            if (newGui != null) {
+                plugin.setEditMode(player, targetId);
+                player.openInventory(newGui.getInventory());
+                player.sendMessage(plugin.getLanguageManager().getMessage("command.edit.edit_mode", "{id}", targetId));
+            }
         }
     }
 
@@ -271,7 +308,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         }
 
         plugin.loadGuis();
-        // LanguageManager 리로드 기능이 있다면 호출 (권장)
         if (plugin.getLanguageManager() != null) {
             plugin.getLanguageManager().reload();
         }
@@ -282,6 +318,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.header"));
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.open"));
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.create"));
+        sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.copy"));
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.edit"));
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.delete"));
         sender.sendMessage(plugin.getLanguageManager().getMessage("command.help.list"));
@@ -297,6 +334,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             List<String> subCommands = new ArrayList<>();
             if (sender.hasPermission("guimanager.open")) subCommands.add("open");
             if (sender.hasPermission("guimanager.create")) subCommands.add("create");
+            if (sender.hasPermission("guimanager.copy")) subCommands.add("copy");
             if (sender.hasPermission("guimanager.edit")) subCommands.add("edit");
             if (sender.hasPermission("guimanager.delete")) subCommands.add("delete");
             if (sender.hasPermission("guimanager.list")) subCommands.add("list");
@@ -310,7 +348,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             }
         } else if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if (sub.equals("open") || sub.equals("edit") || sub.equals("delete")) {
+            if (sub.equals("open") || sub.equals("edit") || sub.equals("delete") || sub.equals("copy")) {
                 for (String id : plugin.getGuis().keySet()) {
                     if (id.toLowerCase().startsWith(args[1].toLowerCase())) {
                         completions.add(id);
@@ -322,7 +360,7 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             }
         } else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("open") && sender.hasPermission("guimanager.open.others")) {
-                return null; // Bukkit handles player list
+                return null;
             } else if (args[0].equalsIgnoreCase("import") && args[1].equalsIgnoreCase("deluxemenus")) {
                 File dmFolder = new File(plugin.getDataFolder().getParentFile(), "DeluxeMenus/gui_menus");
                 if (dmFolder.exists() && dmFolder.isDirectory()) {
