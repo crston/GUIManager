@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 public final class ItemEditor {
 
@@ -24,261 +23,152 @@ public final class ItemEditor {
     public static final String COST_TITLE_PREFIX = "§7[Item Cost Editor] §e";
     public static final NamespacedKey KEY_PAGE = new NamespacedKey(GUIManager.getInstance(), "editor_page");
 
-    private static final int LORE_SLOTS_PER_PAGE = 7;
     private static final ItemStack SEPARATOR_PANE;
-
     static {
         SEPARATOR_PANE = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = SEPARATOR_PANE.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(" ");
-            SEPARATOR_PANE.setItemMeta(meta);
-        }
+        if (meta != null) { meta.setDisplayName(" "); SEPARATOR_PANE.setItemMeta(meta); }
     }
 
-    /**
-     * 아이템 에디터 인벤토리를 엽니다.
-     * GUIListener 에서 파싱할 수 있도록 타이틀 형식을 Slot 0 형태로 유지합니다.
-     */
     public static void open(Player player, EditSession session) {
-        // 타이틀 형식 고정: GUIListener 의 파싱 로직과 일치해야 함
         String title = TITLE_PREFIX + session.getGuiName() + " Slot " + session.getSlot();
         Inventory inv = Bukkit.createInventory(null, 54, title);
 
-        // Row 1: 일반 설정
-        inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§b(Click to set via chat)"));
+        inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§bClick to set via chat"));
         inv.setItem(1, createModelDataItem(session));
         inv.setItem(2, createDamageItem(session));
-        inv.setItem(3, createOptionItem(Material.BOOK, "§eItem Model ID", session, GUIManager.KEY_ITEM_MODEL_ID, "None", PersistentDataType.STRING));
-
-        // 중앙 아이콘 (4번 슬롯): 가장 중요함. 세션의 최신 아이템을 표시
+        inv.setItem(3, createItemModelItem(session));
         inv.setItem(4, session.getItem());
-
         inv.setItem(5, createTargetToggleItem(session));
-        inv.setItem(6, createOptionItem(Material.PAPER, "§eNo-Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default message", PersistentDataType.STRING));
-        inv.setItem(7, createOptionItem(Material.PLAYER_HEAD, "§eSet Skull Texture", "§b(Click to set Name or Base64)"));
-        inv.setItem(8, createOptionItem(Material.OAK_DOOR, "§cBack", "§7Returns to the GUI editor."));
+        inv.setItem(6, createOptionItem(Material.PAPER, "§eNo Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default", PersistentDataType.STRING));
+        inv.setItem(7, createOptionItem(Material.PLAYER_HEAD, "§eSkull Texture", "§bName or Base64"));
+        inv.setItem(8, createOptionItem(Material.OAK_DOOR, "§cBack", "§7Return to GUI"));
 
-        // Row 2: Left / Shift+Left
-        createClickActionRow(inv, 9, "§aLeft-Click", "§dShift+Left-Click",
-                EditSession.EditType.COMMAND_LEFT, EditSession.EditType.MONEY_COST_LEFT, EditSession.EditType.COST_LEFT, EditSession.EditType.KEEP_OPEN_LEFT, EditSession.EditType.COOLDOWN_LEFT, EditSession.EditType.EXECUTOR_LEFT,
-                EditSession.EditType.COMMAND_SHIFT_LEFT, EditSession.EditType.MONEY_COST_SHIFT_LEFT, EditSession.EditType.COST_SHIFT_LEFT, EditSession.EditType.KEEP_OPEN_SHIFT_LEFT, EditSession.EditType.COOLDOWN_SHIFT_LEFT, EditSession.EditType.EXECUTOR_SHIFT_LEFT,
-                session);
+        createActionRow(inv, 9, "§aLeft", "§dS-Left", session,
+                GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT, GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_COST_LEFT, GUIManager.KEY_PERMISSION_LEFT,
+                GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT, GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_COST_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT,
+                GUIManager.KEY_KEEP_OPEN_LEFT, GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
 
-        // Row 3: Right / Shift+Right
-        createClickActionRow(inv, 18, "§bRight-Click", "§cShift+Right-Click",
-                EditSession.EditType.COMMAND_RIGHT, EditSession.EditType.MONEY_COST_RIGHT, EditSession.EditType.COST_RIGHT, EditSession.EditType.KEEP_OPEN_RIGHT, EditSession.EditType.COOLDOWN_RIGHT, EditSession.EditType.EXECUTOR_RIGHT,
-                EditSession.EditType.COMMAND_SHIFT_RIGHT, EditSession.EditType.MONEY_COST_SHIFT_RIGHT, EditSession.EditType.COST_SHIFT_RIGHT, EditSession.EditType.KEEP_OPEN_SHIFT_RIGHT, EditSession.EditType.COOLDOWN_SHIFT_RIGHT, EditSession.EditType.EXECUTOR_SHIFT_RIGHT,
-                session);
+        createActionRow(inv, 18, "§bRight", "§cS-Right", session,
+                GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT, GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_COST_RIGHT, GUIManager.KEY_PERMISSION_RIGHT,
+                GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_COOLDOWN_SHIFT_RIGHT, GUIManager.KEY_EXECUTOR_SHIFT_RIGHT, GUIManager.KEY_MONEY_COST_SHIFT_RIGHT, GUIManager.KEY_COST_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT,
+                GUIManager.KEY_KEEP_OPEN_RIGHT, GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT);
 
-        // Row 4: F / Shift+F
-        createKeybindActionRow(inv, 27, "§eF-Key", "§6Shift+F-Key",
-                EditSession.EditType.COMMAND_F, EditSession.EditType.MONEY_COST_F, EditSession.EditType.COST_F, EditSession.EditType.PERMISSION_F, EditSession.EditType.COOLDOWN_F, EditSession.EditType.EXECUTOR_F,
-                EditSession.EditType.COMMAND_SHIFT_F, EditSession.EditType.MONEY_COST_SHIFT_F, EditSession.EditType.COST_SHIFT_F, EditSession.EditType.PERMISSION_SHIFT_F, EditSession.EditType.COOLDOWN_SHIFT_F, EditSession.EditType.EXECUTOR_SHIFT_F,
-                session);
+        createActionRow(inv, 27, "§eF Key", "§6S-F Key", session,
+                GUIManager.KEY_COMMAND_F, GUIManager.KEY_COOLDOWN_F, GUIManager.KEY_EXECUTOR_F, GUIManager.KEY_MONEY_COST_F, GUIManager.KEY_COST_F, GUIManager.KEY_PERMISSION_F,
+                GUIManager.KEY_COMMAND_SHIFT_F, GUIManager.KEY_COOLDOWN_SHIFT_F, GUIManager.KEY_EXECUTOR_SHIFT_F, GUIManager.KEY_MONEY_COST_SHIFT_F, GUIManager.KEY_COST_SHIFT_F, GUIManager.KEY_PERMISSION_SHIFT_F,
+                GUIManager.KEY_KEEP_OPEN_F, GUIManager.KEY_KEEP_OPEN_SHIFT_F);
 
-        // Row 5: Q / Shift+Q
-        createKeybindActionRow(inv, 36, "§3Q-Key", "§9Shift+Q-Key",
-                EditSession.EditType.COMMAND_Q, EditSession.EditType.MONEY_COST_Q, EditSession.EditType.COST_Q, EditSession.EditType.PERMISSION_Q, EditSession.EditType.COOLDOWN_Q, EditSession.EditType.EXECUTOR_Q,
-                EditSession.EditType.COMMAND_SHIFT_Q, EditSession.EditType.MONEY_COST_SHIFT_Q, EditSession.EditType.COST_SHIFT_Q, EditSession.EditType.PERMISSION_SHIFT_Q, EditSession.EditType.COOLDOWN_SHIFT_Q, EditSession.EditType.EXECUTOR_SHIFT_Q,
-                session);
+        createActionRow(inv, 36, "§3Q Key", "§9S-Q Key", session,
+                GUIManager.KEY_COMMAND_Q, GUIManager.KEY_COOLDOWN_Q, GUIManager.KEY_EXECUTOR_Q, GUIManager.KEY_MONEY_COST_Q, GUIManager.KEY_COST_Q, GUIManager.KEY_PERMISSION_Q,
+                GUIManager.KEY_COMMAND_SHIFT_Q, GUIManager.KEY_COOLDOWN_SHIFT_Q, GUIManager.KEY_EXECUTOR_SHIFT_Q, GUIManager.KEY_MONEY_COST_SHIFT_Q, GUIManager.KEY_COST_SHIFT_Q, GUIManager.KEY_PERMISSION_SHIFT_Q,
+                GUIManager.KEY_KEEP_OPEN_Q, GUIManager.KEY_KEEP_OPEN_SHIFT_Q);
 
-        // 로어 아이템 및 페이지네이션 설정
-        setLoreItemsAndPagination(inv, session);
-
-        // 인벤토리 열기
+        setLoreItems(inv, session);
         player.openInventory(inv);
     }
 
-    private static void createClickActionRow(Inventory inv, int startSlot, String name1, String name2,
-                                             EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType keepOpen1, EditSession.EditType cd1, EditSession.EditType exec1,
-                                             EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType keepOpen2, EditSession.EditType cd2, EditSession.EditType exec2,
-                                             EditSession s) {
-        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(cmd1), ActionKeyUtil.getKeyFromType(cd1), ActionKeyUtil.getKeyFromType(exec1)));
-        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq1)));
-        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq1)));
-        inv.setItem(startSlot + 3, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(keepOpen1)));
-        inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
-        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(cmd2), ActionKeyUtil.getKeyFromType(cd2), ActionKeyUtil.getKeyFromType(exec2)));
-        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq2)));
-        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq2)));
-        inv.setItem(startSlot + 8, createKeepOpenItem(s, ActionKeyUtil.getKeyFromType(keepOpen2)));
-    }
+    private static void createActionRow(Inventory inv, int start, String n1, String n2, EditSession s,
+                                        NamespacedKey c1, NamespacedKey cd1, NamespacedKey e1, NamespacedKey m1, NamespacedKey i1, NamespacedKey p1,
+                                        NamespacedKey c2, NamespacedKey cd2, NamespacedKey e2, NamespacedKey m2, NamespacedKey i2, NamespacedKey p2,
+                                        NamespacedKey k1, NamespacedKey k2) {
+        inv.setItem(start, createCommandItem(s, "§f" + n1, c1, cd1, e1));
+        inv.setItem(start + 1, createMoneyCostItem(s, m1));
+        inv.setItem(start + 2, createItemCostItem(s, i1));
 
-    private static void createKeybindActionRow(Inventory inv, int startSlot, String name1, String name2,
-                                               EditSession.EditType cmd1, EditSession.EditType moneyEq1, EditSession.EditType itemEq1, EditSession.EditType perm1, EditSession.EditType cd1, EditSession.EditType exec1,
-                                               EditSession.EditType cmd2, EditSession.EditType moneyEq2, EditSession.EditType itemEq2, EditSession.EditType perm2, EditSession.EditType cd2, EditSession.EditType exec2,
-                                               EditSession s) {
-        inv.setItem(startSlot,     createCommandItem(s, name1 + ": Action", ActionKeyUtil.getKeyFromType(cmd1), ActionKeyUtil.getKeyFromType(cd1), ActionKeyUtil.getKeyFromType(exec1)));
-        inv.setItem(startSlot + 1, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq1)));
-        inv.setItem(startSlot + 2, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq1)));
-        inv.setItem(startSlot + 3, createOptionItem(Material.IRON_BARS, "§f" + name1 + ": Permission", s, ActionKeyUtil.getKeyFromType(perm1), "None", PersistentDataType.STRING));
-        inv.setItem(startSlot + 4, SEPARATOR_PANE.clone());
-        inv.setItem(startSlot + 5, createCommandItem(s, name2 + ": Action", ActionKeyUtil.getKeyFromType(cmd2), ActionKeyUtil.getKeyFromType(cd2), ActionKeyUtil.getKeyFromType(exec2)));
-        inv.setItem(startSlot + 6, createMoneyCostItem(s, ActionKeyUtil.getKeyFromType(moneyEq2)));
-        inv.setItem(startSlot + 7, createItemCostItem(s, ActionKeyUtil.getKeyFromType(itemEq2)));
-        inv.setItem(startSlot + 8, createOptionItem(Material.IRON_BARS, "§f" + name2 + ": Permission", s, ActionKeyUtil.getKeyFromType(perm2), "None", PersistentDataType.STRING));
-    }
-
-    private static void setLoreItemsAndPagination(Inventory inv, EditSession session) {
-        ItemStack item = session.getItem();
-        int page = session.getLorePage();
-
-        inv.setItem(45, createOptionItem(Material.WRITABLE_BOOK, "§6Add Lore Line", "§b(Click to add a new line)"));
-
-        List<String> lore = (item != null && item.hasItemMeta() && Objects.requireNonNull(item.getItemMeta()).hasLore())
-                ? new ArrayList<>(Objects.requireNonNull(item.getItemMeta().getLore()))
-                : new ArrayList<>();
-
-        int totalPages = Math.max(0, (lore.size() - 1) / LORE_SLOTS_PER_PAGE);
-
-        if (page > totalPages) {
-            page = totalPages;
-            session.setLorePage(page);
-        }
-
-        int startIndex = page * LORE_SLOTS_PER_PAGE;
-        for (int i = 0; i < LORE_SLOTS_PER_PAGE; i++) {
-            int loreIndex = startIndex + i;
-            if (loreIndex < lore.size()) {
-                ItemStack loreItem = new ItemStack(Material.PAPER);
-                ItemMeta loreMeta = loreItem.getItemMeta();
-                Objects.requireNonNull(loreMeta).setDisplayName("§eLore Line " + (loreIndex + 1));
-                loreMeta.setLore(Arrays.asList("§7" + lore.get(loreIndex), " ", "§bLeft-Click to Edit", "§cRight-Click to Remove"));
-                loreItem.setItemMeta(loreMeta);
-                inv.setItem(46 + i, loreItem);
-            } else {
-                inv.setItem(46 + i, null);
-            }
-        }
-
-        ItemStack pageButton = new ItemStack(Material.ARROW);
-        ItemMeta meta = pageButton.getItemMeta();
-        Objects.requireNonNull(meta).setDisplayName("§ePage Navigation");
-        List<String> loreList = new ArrayList<>();
-        loreList.add("§7Page " + (page + 1) + " of " + (totalPages + 1));
-        loreList.add(" ");
-        loreList.add("§bLeft-Click for Next Page");
-        loreList.add("§dShift-Click for Previous Page");
-        meta.setLore(loreList);
-
-        meta.getPersistentDataContainer().set(KEY_PAGE, PersistentDataType.INTEGER, page);
-
-        pageButton.setItemMeta(meta);
-        inv.setItem(53, pageButton);
-    }
-
-    private static <T, Z> ItemStack createOptionItem(Material material, String name, EditSession session, NamespacedKey key, Z def, PersistentDataType<T, Z> type) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(material);
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        Z value = pdc.getOrDefault(key, type, def);
-        return createOptionItem(material, name, Arrays.asList("§7Current: §f" + value, "§b(Click to edit)"));
-    }
-
-    private static ItemStack createCommandItem(EditSession session, String name, NamespacedKey commandKey, NamespacedKey cooldownKey, NamespacedKey executorKey) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) {
-            return createOptionItem(Material.BARRIER, "§c" + name, Collections.singletonList("§cError: Missing ItemMeta"));
-        }
-
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        String command = pdc.getOrDefault(commandKey, PersistentDataType.STRING, "None");
-        double cooldown = pdc.getOrDefault(cooldownKey, PersistentDataType.DOUBLE, 0.0);
-
-        String executorName = pdc.getOrDefault(executorKey, PersistentDataType.STRING, "PLAYER");
-
-        List<String> lore = new ArrayList<>();
-        lore.add("§7Command: §f" + command);
-        lore.add("§7Cooldown: §f" + cooldown + "s");
-        lore.add("§7Executor: §f" + executorName);
-        lore.add(" ");
-        lore.add("§bLeft-Click: §fEdit Command");
-        lore.add("§cRight-Click: §fEdit Cooldown");
-        lore.add("§eShift+Left-Click: §fCycle Executor");
-
-        return createOptionItem(Material.COMMAND_BLOCK, "§f" + name, lore);
-    }
-
-    private static ItemStack createKeepOpenItem(EditSession session, NamespacedKey key) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(Material.ENDER_PEARL);
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        boolean enabled = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0) == 1;
-        Material material = enabled ? Material.ENDER_EYE : Material.ENDER_PEARL;
-        String name = "§eKeep GUI Open";
-        List<String> lore = Arrays.asList(
-                enabled ? "§7Status: §aEnabled" : "§7Status: §cDisabled",
-                "§fKeeps the GUI open after clicking.", " ", "§b(Click to toggle)");
-        return createOptionItem(material, name, lore);
-    }
-
-    private static ItemStack createOptionItem(Material material, String name, String lore) {
-        return createOptionItem(material, name, Collections.singletonList(lore));
-    }
-
-    private static ItemStack createItemCostItem(EditSession s, NamespacedKey key) {
-        ItemMeta meta = s.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(Material.CHEST);
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        List<String> lore = new ArrayList<>(Arrays.asList("§b(Click to set items)", " "));
-
-        if (pdc.has(key, PersistentDataType.STRING)) {
-            String base64 = pdc.get(key, PersistentDataType.STRING);
-            if (base64 != null && !base64.isEmpty()) {
-                lore.add("§7Current Cost:");
-                lore.addAll(ItemSerialization.getCostDisplay(base64));
-            } else {
-                lore.add("§7Current Cost: §cNone");
-            }
+        if (k1 != null) {
+            inv.setItem(start + 4, createKeepGuiButton(s, k1, k2));
         } else {
-            lore.add("§7Current Cost: §cNone");
+            inv.setItem(start + 4, SEPARATOR_PANE.clone());
         }
-        return createOptionItem(Material.CHEST, "Set Item Cost", lore);
+
+        inv.setItem(start + 5, createCommandItem(s, "§f" + n2, c2, cd2, e2));
+        inv.setItem(start + 6, createMoneyCostItem(s, m2));
+        inv.setItem(start + 7, createItemCostItem(s, i2));
+
+        inv.setItem(start + 3, createOptionItem(Material.IRON_BARS, "§f" + n1 + " Perm", s, p1, "None", PersistentDataType.STRING));
+        inv.setItem(start + 8, createOptionItem(Material.IRON_BARS, "§f" + n2 + " Perm", s, p2, "None", PersistentDataType.STRING));
     }
 
-    private static ItemStack createMoneyCostItem(EditSession s, NamespacedKey key) {
-        if (GUIManager.econ == null) {
-            return createOptionItem(Material.GRAY_DYE, "§cSet Money Cost", Arrays.asList("§7Vault plugin not found.", "§7This feature is disabled."));
+    private static ItemStack createKeepGuiButton(EditSession s, NamespacedKey k1, NamespacedKey k2) {
+        PersistentDataContainer pdc = s.getItem().getItemMeta().getPersistentDataContainer();
+        boolean b1 = pdc.getOrDefault(k1, PersistentDataType.BYTE, (byte) 0) == 1;
+        boolean b2 = pdc.getOrDefault(k2, PersistentDataType.BYTE, (byte) 0) == 1;
+
+        List<String> lore = Arrays.asList(
+                b1 ? "§aNormal: ON" : "§cNormal: OFF",
+                b2 ? "§aShift: ON" : "§cShift: OFF",
+                " ", "§bLeft Click Toggle Normal", "§dRight Click Toggle Shift"
+        );
+        return createOptionItem(Material.ENDER_EYE, "§eKeep GUI Open", lore);
+    }
+
+    private static ItemStack createCommandItem(EditSession s, String n, NamespacedKey ck, NamespacedKey cdk, NamespacedKey ek) {
+        PersistentDataContainer pdc = s.getItem().getItemMeta().getPersistentDataContainer();
+        List<String> lore = Arrays.asList(
+                "§7Cmd " + pdc.getOrDefault(ck, PersistentDataType.STRING, "None"),
+                "§7CD " + pdc.getOrDefault(cdk, PersistentDataType.DOUBLE, 0.0),
+                "§7Exec " + pdc.getOrDefault(ek, PersistentDataType.STRING, "PLAYER"),
+                " ", "§bLeft Edit Cmd", "§cRight Edit CD", "§eS-Left Cycle Exec"
+        );
+        return createOptionItem(Material.COMMAND_BLOCK, n, lore);
+    }
+
+    private static ItemStack createMoneyCostItem(EditSession s, NamespacedKey k) {
+        double v = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(k, PersistentDataType.DOUBLE, 0.0);
+        return createOptionItem(Material.EMERALD, "§eMoney Cost", "§7Cur " + v);
+    }
+
+    private static ItemStack createItemCostItem(EditSession s, NamespacedKey k) {
+        return createOptionItem(Material.CHEST, "§eItem Cost", "§bClick to set");
+    }
+
+    private static ItemStack createTargetToggleItem(EditSession s) {
+        byte b = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0);
+        return createOptionItem(b == 1 ? Material.PLAYER_HEAD : Material.SKELETON_SKULL, "§eTarget", b == 1 ? "§aON" : "§cOFF");
+    }
+
+    private static ItemStack createModelDataItem(EditSession s) {
+        int v = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, 0);
+        return createOptionItem(Material.ITEM_FRAME, "§eCMD", "§7Cur " + v);
+    }
+
+    private static ItemStack createDamageItem(EditSession s) {
+        int v = ((Damageable) s.getItem().getItemMeta()).getDamage();
+        return createOptionItem(Material.ANVIL, "§eDamage", "§7Cur " + v);
+    }
+
+    private static ItemStack createItemModelItem(EditSession session) {
+        String val = session.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING, "None");
+        return createOptionItem(Material.PAINTING, "§eModel ID", "§7Cur " + val);
+    }
+
+    private static void setLoreItems(Inventory inv, EditSession s) {
+        int page = s.getLorePage();
+        inv.setItem(45, createOptionItem(Material.WRITABLE_BOOK, "§6Add Lore", "§bClick to add"));
+        List<String> lore = s.getItem().getItemMeta().hasLore() ? s.getItem().getItemMeta().getLore() : new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            int idx = (page * 7) + i;
+            if (idx < lore.size()) {
+                inv.setItem(46 + i, createOptionItem(Material.PAPER, "§eLore " + (idx + 1), Arrays.asList("§7" + lore.get(idx), "§bLeft Edit", "§cRight Remove")));
+            }
         }
-        ItemMeta meta = s.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(Material.EMERALD);
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        double value = pdc.getOrDefault(key, PersistentDataType.DOUBLE, 0.0);
-        return createOptionItem(Material.EMERALD, "Set Money Cost", Arrays.asList("§7Current: §f" + value, "§b(Click to set via chat)"));
+        ItemStack a = new ItemStack(Material.ARROW);
+        ItemMeta m = a.getItemMeta();
+        m.setDisplayName("§ePage " + (page + 1));
+        m.getPersistentDataContainer().set(KEY_PAGE, PersistentDataType.INTEGER, page);
+        a.setItemMeta(m);
+        inv.setItem(53, a);
     }
 
-    private static ItemStack createTargetToggleItem(EditSession session) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(Material.SKELETON_SKULL);
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        boolean enabled = pdc.getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0) == 1;
-        return createOptionItem(enabled ? Material.PLAYER_HEAD : Material.SKELETON_SKULL, "§eRequire Target Player", Arrays.asList(
-                enabled ? "§7Status: §aEnabled" : "§7Status: §cDisabled", "§fPrompts for a player name", "§ffor {target} placeholder.", " ", "§b(Click to toggle)"));
+    private static ItemStack createOptionItem(Material m, String n, String l) { return createOptionItem(m, n, Collections.singletonList(l)); }
+    private static <T, Z> ItemStack createOptionItem(Material m, String n, EditSession s, NamespacedKey k, Z d, PersistentDataType<T, Z> t) {
+        Z v = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(k, t, d);
+        return createOptionItem(m, n, "§7Cur " + v);
     }
-
-    private static ItemStack createModelDataItem(EditSession session) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) return new ItemStack(Material.ITEM_FRAME);
-        int modelData = meta.getPersistentDataContainer().getOrDefault(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, 0);
-        return createOptionItem(Material.ITEM_FRAME, "§eCustom Model Data", Arrays.asList("§7Current: §f" + (modelData == 0 ? "None" : modelData), "§b(Click to set)"));
-    }
-
-    private static ItemStack createDamageItem(EditSession session) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        int damage = (meta instanceof Damageable) ? ((Damageable) meta).getDamage() : 0;
-        return createOptionItem(Material.ANVIL, "§eItem Damage (Durability)", Arrays.asList("§7Current: §f" + damage, "§b(Click to set)"));
-    }
-
-    private static ItemStack createOptionItem(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
-            item.setItemMeta(meta);
-        }
-        return item;
+    private static ItemStack createOptionItem(Material m, String n, List<String> l) {
+        ItemStack i = new ItemStack(m); ItemMeta mt = i.getItemMeta();
+        if (mt != null) { mt.setDisplayName(n); mt.setLore(l); mt.addItemFlags(ItemFlag.HIDE_ATTRIBUTES); i.setItemMeta(mt); }
+        return i;
     }
 }

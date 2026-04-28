@@ -36,7 +36,7 @@ public final class GuiItemMeta {
         public String command;
         public String permission;
         public String itemCostBase64;
-        public ItemStack[] parsedItemCosts; // 역직렬화된 아이템 캐싱
+        public ItemStack[] parsedItemCosts;
         public double moneyCost;
         public double cooldownSeconds;
         public GUIManager.ExecutorType executor;

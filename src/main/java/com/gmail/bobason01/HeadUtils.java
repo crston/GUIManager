@@ -16,9 +16,8 @@ import java.util.UUID;
 
 public class HeadUtils {
 
-    // 텍스처 URL이 포함된 Base64 문자열인지 확인
     public static boolean isTextureMaterialString(String str) {
-        return str != null && str.length() > 20 && (str.startsWith("eyJ0ZXh0dXJlcy") || str.contains("textures.minecraft.net"));
+        return str != null && str.length() > 20 && (str.indexOf("eyJ0ZXh0dXJlcy") == 0 || str.indexOf("textures.minecraft.net") != -1);
     }
 
     public static ItemStack createHeadBySpec(String materialStr, String skullField) {
@@ -36,25 +35,31 @@ public class HeadUtils {
     }
 
     public static ItemStack createHeadByName(String name) {
+        // 플레이어 이름 기반 캐싱 시도
+        if (HeadCache.has(name)) return HeadCache.getHead(name);
+
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
-            meta.setOwner(name); // Deprecated지만 간단한 구현을 위해 사용. 최신 버전은 setOwningPlayer 권장
+            meta.setOwner(name);
             head.setItemMeta(meta);
         }
+
+        HeadCache.cacheHead(name, head);
         return head;
     }
 
     public static ItemStack createHeadByBase64(String base64) {
+        // Base64 기반 캐싱 확인
+        if (HeadCache.has(base64)) return HeadCache.getHead(base64);
+
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         if (base64 == null || base64.isEmpty()) return head;
 
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta == null) return head;
 
-        // Base64가 전체 JSON이 아니라 URL만 있는 경우 등 처리 (필요시)
-        // 편의상 URL이 직접 들어온 경우 처리
-        if (base64.startsWith("http")) {
+        if (base64.indexOf("http") == 0) {
             String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + base64 + "\"}}}";
             base64 = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
         }
@@ -70,17 +75,17 @@ public class HeadUtils {
                 profile.setTextures(textures);
                 meta.setOwnerProfile(profile);
             }
-        } catch (Exception e) {
-            // Base64 디코딩 실패 또는 URL 오류 시 무시 (기본 머리 반환)
+        } catch (Exception ignored) {
         }
 
         head.setItemMeta(meta);
+        // 생성된 머리 캐싱
+        HeadCache.cacheHead(base64, head);
         return head;
     }
 
     private static String extractUrlFromDecodedJson(String json) {
         try {
-            // Simple parsing logic using Gson
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             return obj.getAsJsonObject("textures").getAsJsonObject("SKIN").get("url").getAsString();
         } catch (Exception e) {

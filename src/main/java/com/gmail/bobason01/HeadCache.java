@@ -6,7 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class HeadCache {
 
-    // Base64 문자열을 키로 하여 생성된 머리 아이템을 캐싱
     private static final Map<String, ItemStack> cache = new ConcurrentHashMap<>();
 
     public static ItemStack getHead(String base64) {

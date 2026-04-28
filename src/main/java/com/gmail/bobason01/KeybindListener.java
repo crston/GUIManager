@@ -5,8 +5,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
-
-import java.util.Objects;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 public class KeybindListener implements Listener {
 
@@ -23,7 +23,8 @@ public class KeybindListener implements Listener {
         if (item == null || !item.hasItemMeta()) return;
 
         actionExecutor.execute(event.getPlayer(), item, action);
-        if (Objects.requireNonNull(item.getItemMeta()).getPersistentDataContainer().has(ActionKeyUtil.getCommandKey(action), org.bukkit.persistence.PersistentDataType.STRING)) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null && meta.getPersistentDataContainer().has(ActionKeyUtil.getCommandKey(action), PersistentDataType.STRING)) {
             event.setCancelled(true);
         }
     }
@@ -35,7 +36,8 @@ public class KeybindListener implements Listener {
         if (item == null || !item.hasItemMeta()) return;
 
         actionExecutor.execute(event.getPlayer(), item, action);
-        if (Objects.requireNonNull(item.getItemMeta()).getPersistentDataContainer().has(ActionKeyUtil.getCommandKey(action), org.bukkit.persistence.PersistentDataType.STRING)) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null && meta.getPersistentDataContainer().has(ActionKeyUtil.getCommandKey(action), PersistentDataType.STRING)) {
             event.setCancelled(true);
         }
     }

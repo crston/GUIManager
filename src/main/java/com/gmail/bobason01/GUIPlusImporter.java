@@ -31,13 +31,13 @@ public class GUIPlusImporter {
     public void importFromGUIPlus(CommandSender sender) {
         File guiPlusFolder = new File("plugins/GUIPlus/inventorys");
         if (!guiPlusFolder.exists() || !guiPlusFolder.isDirectory()) {
-            sender.sendMessage(ChatColor.RED + "GUIPlus 'inventorys' folder not found at 'plugins/GUIPlus/inventorys'.");
+            sender.sendMessage(ChatColor.RED + "GUIPlus folder not found");
             return;
         }
 
         File[] files = guiPlusFolder.listFiles();
         if (files == null || files.length == 0) {
-            sender.sendMessage(ChatColor.RED + "No files found in GUIPlus 'inventorys' folder.");
+            sender.sendMessage(ChatColor.RED + "No files found");
             return;
         }
 
@@ -46,9 +46,7 @@ public class GUIPlusImporter {
         int skipped = 0;
 
         for (File file : files) {
-            if (file.isDirectory()) {
-                continue;
-            }
+            if (file.isDirectory() || !file.getName().endsWith(".yml")) continue;
 
             try {
                 FileConfiguration config = YamlConfiguration.loadConfiguration(file);
@@ -64,11 +62,10 @@ public class GUIPlusImporter {
                 }
             } catch (Exception e) {
                 failed++;
-                sender.sendMessage(ChatColor.RED + "Failed to import " + file.getName() + ": " + e.getMessage());
-                plugin.getLogger().log(Level.WARNING, "GUIPlus import failed for " + file.getName(), e);
+                plugin.getLogger().log(Level.WARNING, "Import failed for " + file.getName(), e);
             }
         }
-        sender.sendMessage(ChatColor.GREEN + "Import complete. Success: " + success + ", Failed: " + failed + ", Skipped: " + skipped);
+        sender.sendMessage(ChatColor.GREEN + "Import complete. Success: " + success + ", Failed: " + failed);
     }
 
     private boolean convertFile(File file, FileConfiguration config) {
@@ -91,17 +88,12 @@ public class GUIPlusImporter {
                     ConfigurationSection itemDataSection = itemsSection.getConfigurationSection(slotStr);
                     if (itemDataSection == null) continue;
 
-                    String firstKey = itemDataSection.getKeys(false).stream().findFirst().orElse(null);
-                    if (firstKey == null) continue;
-
+                    String firstKey = itemDataSection.getKeys(false).iterator().next();
                     ConfigurationSection itemDefinition = itemDataSection.getConfigurationSection(firstKey);
                     if (itemDefinition != null) {
-                        ItemStack item = convertItem(itemDefinition);
-                        gui.setItem(slot, item);
+                        gui.setItem(slot, convertItem(itemDefinition));
                     }
-                } catch (NumberFormatException e) {
-                    plugin.getLogger().warning("Invalid slot number '" + slotStr + "' in file " + file.getName());
-                }
+                } catch (Exception ignored) {}
             }
         }
         plugin.addGui(id, gui);
@@ -119,24 +111,22 @@ public class GUIPlusImporter {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return itemStack;
 
-        Object rawMetaObject = itemSection.get("meta");
-        if (rawMetaObject instanceof ItemMeta) {
-            ItemMeta sourceMeta = (ItemMeta) rawMetaObject;
+        Object rawMeta = itemSection.get("meta");
+        if (rawMeta instanceof ItemMeta) {
+            ItemMeta sourceMeta = (ItemMeta) rawMeta;
             if (sourceMeta.hasDisplayName()) meta.setDisplayName(sourceMeta.getDisplayName());
             if (sourceMeta.hasLore()) meta.setLore(sourceMeta.getLore());
             if (sourceMeta.hasCustomModelData()) meta.setCustomModelData(sourceMeta.getCustomModelData());
-        } else if (rawMetaObject instanceof Map) {
-            Map<String, Object> metaMap = (Map<String, Object>) rawMetaObject;
+        } else if (rawMeta instanceof Map) {
+            Map<String, Object> metaMap = (Map<String, Object>) rawMeta;
             if (metaMap.containsKey("display-name")) meta.setDisplayName(toLegacyText((String) metaMap.get("display-name")));
             if (metaMap.containsKey("lore")) {
                 List<String> legacyLore = new ArrayList<>();
                 ((List<?>) metaMap.get("lore")).forEach(line -> legacyLore.add(toLegacyText((String) line)));
                 meta.setLore(legacyLore);
             }
-            if (metaMap.containsKey("custom-model-data")) {
-                if (metaMap.get("custom-model-data") instanceof Integer) {
-                    meta.setCustomModelData((Integer) metaMap.get("custom-model-data"));
-                }
+            if (metaMap.get("custom-model-data") instanceof Integer) {
+                meta.setCustomModelData((Integer) metaMap.get("custom-model-data"));
             }
         }
 
@@ -145,6 +135,7 @@ public class GUIPlusImporter {
             pdc.set(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, meta.getCustomModelData());
         }
 
+        // 액션 변환
         convertAction(pdc, itemDef, "leftaction", GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT, GUIManager.KEY_KEEP_OPEN_LEFT);
         convertAction(pdc, itemDef, "rightaction", GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT, GUIManager.KEY_KEEP_OPEN_RIGHT);
         convertAction(pdc, itemDef, "shiftleftaction", GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT, GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
@@ -156,54 +147,41 @@ public class GUIPlusImporter {
 
     private void convertAction(PersistentDataContainer pdc, ConfigurationSection itemDef, String actionKey, NamespacedKey commandKey, NamespacedKey moneyCostKey, NamespacedKey permissionKey, NamespacedKey cooldownKey, NamespacedKey executorKey, NamespacedKey keepOpenKey) {
         if (itemDef.isConfigurationSection(actionKey)) {
-            // closeInv 설정 변환 (GUIPlus: closeInv: true -> GUIManager: keepOpen: false)
-            boolean closeInv = itemDef.getBoolean(actionKey + ".closeInv", true); // GUIPlus의 기본값은 닫는 것(true)으로 가정
-            byte keepOpenValue = (byte) (closeInv ? 0 : 1); // closeInv가 true이면 keepOpen은 0 (false)
-            pdc.set(keepOpenKey, PersistentDataType.BYTE, keepOpenValue);
+            ConfigurationSection section = itemDef.getConfigurationSection(actionKey);
+            boolean closeInv = section.getBoolean("closeInv", true);
+            pdc.set(keepOpenKey, PersistentDataType.BYTE, (byte) (closeInv ? 0 : 1));
 
-            if (itemDef.isSet(actionKey + ".commands")) {
-                String command = itemDef.getStringList(actionKey + ".commands").stream().findFirst().orElse("");
-                if (!command.isEmpty()) {
-                    GUIManager.ExecutorType executor = GUIManager.ExecutorType.PLAYER;
-                    String finalCommand = command.trim();
+            List<String> commands = section.getStringList("commands");
+            if (!commands.isEmpty()) {
+                String rawCommand = commands.get(0);
+                GUIManager.ExecutorType executor = GUIManager.ExecutorType.PLAYER;
+                String finalCommand = rawCommand.trim();
 
-                    if (finalCommand.startsWith("<server>")) {
-                        executor = GUIManager.ExecutorType.CONSOLE;
-                        finalCommand = finalCommand.substring(8).trim();
-                    } else if (finalCommand.startsWith("<op>")) {
-                        executor = GUIManager.ExecutorType.OP;
-                        finalCommand = finalCommand.substring(4).trim();
-                    } else if (finalCommand.startsWith("<msg>")) {
-                        executor = GUIManager.ExecutorType.CONSOLE;
-                        finalCommand = "tell %player% " + finalCommand.substring(5).trim();
-                    }
+                if (finalCommand.startsWith("<server>")) {
+                    executor = GUIManager.ExecutorType.CONSOLE;
+                    finalCommand = finalCommand.substring(8).trim();
+                } else if (finalCommand.startsWith("<op>")) {
+                    executor = GUIManager.ExecutorType.OP;
+                    finalCommand = finalCommand.substring(4).trim();
+                } else if (finalCommand.startsWith("<msg>")) {
+                    executor = GUIManager.ExecutorType.CONSOLE;
+                    finalCommand = "tell %player% " + finalCommand.substring(5).trim();
+                }
 
-                    finalCommand = finalCommand.replace("<player>", "%player%");
+                finalCommand = finalCommand.replace("<player>", "%player%");
+                pdc.set(commandKey, PersistentDataType.STRING, finalCommand);
+                pdc.set(executorKey, PersistentDataType.STRING, executor.name());
+            }
 
-                    pdc.set(commandKey, PersistentDataType.STRING, finalCommand);
-                    pdc.set(executorKey, PersistentDataType.STRING, executor.name());
-                }
-            }
-            if (itemDef.isSet(actionKey + ".price.money")) {
-                double money = itemDef.getDouble(actionKey + ".price.money");
-                if (money > 0) {
-                    pdc.set(moneyCostKey, PersistentDataType.DOUBLE, money);
-                }
-            }
-            if (itemDef.isSet(actionKey + ".permission")) {
-                String permission = itemDef.getString(actionKey + ".permission");
-                if (permission != null && !permission.isEmpty()) {
-                    pdc.set(permissionKey, PersistentDataType.STRING, permission);
-                }
-            }
-            if (itemDef.isSet(actionKey + ".cooldown")) {
-                double cooldownMillis = itemDef.getDouble(actionKey + ".cooldown");
-                if (cooldownMillis > 0) {
-                    pdc.set(cooldownKey, PersistentDataType.DOUBLE, cooldownMillis / 1000.0);
-                }
-            }
+            double money = section.getDouble("price.money");
+            if (money > 0) pdc.set(moneyCostKey, PersistentDataType.DOUBLE, money);
+
+            String perm = section.getString("permission");
+            if (perm != null && !perm.isEmpty()) pdc.set(permissionKey, PersistentDataType.STRING, perm);
+
+            double cooldown = section.getDouble("cooldown");
+            if (cooldown > 0) pdc.set(cooldownKey, PersistentDataType.DOUBLE, cooldown / 1000.0);
         } else {
-            // actionKey 섹션이 없으면 기본값(닫지 않음)으로 설정
             pdc.set(keepOpenKey, PersistentDataType.BYTE, (byte) 1);
         }
     }

@@ -35,9 +35,6 @@ public final class TargetInfo {
 
     @Override
     public String toString() {
-        return "TargetInfo[" +
-                "command='" + command + '\'' +
-                ", executor=" + executor +
-                ']';
+        return "TargetInfo{" + "command='" + command + '\'' + ", executor=" + executor + '}';
     }
 }

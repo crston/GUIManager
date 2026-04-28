@@ -19,57 +19,52 @@ public final class MetaExtractor {
 
         meta.setMaterialSnapshot(item.getType());
 
-        fill(plugin, pdc, meta, GuiItemMeta.LEFT,
+        fill(pdc, meta, GuiItemMeta.LEFT,
                 GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COST_LEFT,
                 GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT,
                 GUIManager.KEY_KEEP_OPEN_LEFT);
 
-        fill(plugin, pdc, meta, GuiItemMeta.SHIFT_LEFT,
+        fill(pdc, meta, GuiItemMeta.SHIFT_LEFT,
                 GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COST_SHIFT_LEFT,
                 GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT,
                 GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
 
-        fill(plugin, pdc, meta, GuiItemMeta.RIGHT,
+        fill(pdc, meta, GuiItemMeta.RIGHT,
                 GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COST_RIGHT,
                 GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT,
                 GUIManager.KEY_KEEP_OPEN_RIGHT);
 
-        fill(plugin, pdc, meta, GuiItemMeta.SHIFT_RIGHT,
+        fill(pdc, meta, GuiItemMeta.SHIFT_RIGHT,
                 GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT, GUIManager.KEY_COST_SHIFT_RIGHT,
                 GUIManager.KEY_MONEY_COST_SHIFT_RIGHT, GUIManager.KEY_COOLDOWN_SHIFT_RIGHT, GUIManager.KEY_EXECUTOR_SHIFT_RIGHT,
                 GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT);
 
-        fill(plugin, pdc, meta, GuiItemMeta.F,
+        fill(pdc, meta, GuiItemMeta.F,
                 GUIManager.KEY_COMMAND_F, GUIManager.KEY_PERMISSION_F, GUIManager.KEY_COST_F,
-                GUIManager.KEY_MONEY_COST_F, GUIManager.KEY_COOLDOWN_F, GUIManager.KEY_EXECUTOR_F,
-                null);
+                GUIManager.KEY_MONEY_COST_F, GUIManager.KEY_COOLDOWN_F, GUIManager.KEY_EXECUTOR_F, null);
 
-        fill(plugin, pdc, meta, GuiItemMeta.SHIFT_F,
+        fill(pdc, meta, GuiItemMeta.SHIFT_F,
                 GUIManager.KEY_COMMAND_SHIFT_F, GUIManager.KEY_PERMISSION_SHIFT_F, GUIManager.KEY_COST_SHIFT_F,
-                GUIManager.KEY_MONEY_COST_SHIFT_F, GUIManager.KEY_COOLDOWN_SHIFT_F, GUIManager.KEY_EXECUTOR_SHIFT_F,
-                null);
+                GUIManager.KEY_MONEY_COST_SHIFT_F, GUIManager.KEY_COOLDOWN_SHIFT_F, GUIManager.KEY_EXECUTOR_SHIFT_F, null);
 
-        fill(plugin, pdc, meta, GuiItemMeta.Q,
+        fill(pdc, meta, GuiItemMeta.Q,
                 GUIManager.KEY_COMMAND_Q, GUIManager.KEY_PERMISSION_Q, GUIManager.KEY_COST_Q,
-                GUIManager.KEY_MONEY_COST_Q, GUIManager.KEY_COOLDOWN_Q, GUIManager.KEY_EXECUTOR_Q,
-                null);
+                GUIManager.KEY_MONEY_COST_Q, GUIManager.KEY_COOLDOWN_Q, GUIManager.KEY_EXECUTOR_Q, null);
 
-        fill(plugin, pdc, meta, GuiItemMeta.SHIFT_Q,
+        fill(pdc, meta, GuiItemMeta.SHIFT_Q,
                 GUIManager.KEY_COMMAND_SHIFT_Q, GUIManager.KEY_PERMISSION_SHIFT_Q, GUIManager.KEY_COST_SHIFT_Q,
-                GUIManager.KEY_MONEY_COST_SHIFT_Q, GUIManager.KEY_COOLDOWN_SHIFT_Q, GUIManager.KEY_EXECUTOR_SHIFT_Q,
-                null);
+                GUIManager.KEY_MONEY_COST_SHIFT_Q, GUIManager.KEY_COOLDOWN_SHIFT_Q, GUIManager.KEY_EXECUTOR_SHIFT_Q, null);
 
         if (pdc.getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0) == 1) {
-            for (String k : new String[]{GuiItemMeta.LEFT, GuiItemMeta.SHIFT_LEFT, GuiItemMeta.RIGHT, GuiItemMeta.SHIFT_RIGHT, GuiItemMeta.F, GuiItemMeta.SHIFT_F, GuiItemMeta.Q, GuiItemMeta.SHIFT_Q}) {
-                GuiItemMeta.Variant v = meta.getOrCreate(k);
-                v.requireTarget = true;
+            String[] keys = {GuiItemMeta.LEFT, GuiItemMeta.SHIFT_LEFT, GuiItemMeta.RIGHT, GuiItemMeta.SHIFT_RIGHT, GuiItemMeta.F, GuiItemMeta.SHIFT_F, GuiItemMeta.Q, GuiItemMeta.SHIFT_Q};
+            for (int i = 0; i < keys.length; i++) {
+                meta.getOrCreate(keys[i]).requireTarget = true;
             }
         }
         return meta;
     }
 
-    private static void fill(GUIManager plugin,
-                             PersistentDataContainer pdc,
+    private static void fill(PersistentDataContainer pdc,
                              GuiItemMeta meta,
                              String key,
                              NamespacedKey cmd, NamespacedKey perm, NamespacedKey itemCost,

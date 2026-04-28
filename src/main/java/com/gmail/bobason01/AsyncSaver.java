@@ -25,7 +25,7 @@ public final class AsyncSaver {
     private static synchronized void startWorker() {
         if (started) return;
         started = true;
-        workerThread = new Thread(AsyncSaver::runLoop, "GUIManager-AsyncSaver");
+        workerThread = new Thread(AsyncSaver::runLoop, "GUIManagerAsyncSaver");
         workerThread.setDaemon(true);
         workerThread.start();
     }
@@ -56,7 +56,7 @@ public final class AsyncSaver {
         }
 
         if (count > 0) {
-            Bukkit.getLogger().info("[GUIManager] Saved " + count + " remaining files during shutdown.");
+            Bukkit.getLogger().info("Saved remaining files during shutdown");
         }
     }
 
@@ -79,7 +79,7 @@ public final class AsyncSaver {
                 yaml.loadFromString(this.yamlString);
                 yaml.save(file);
             } catch (Exception e) {
-                Bukkit.getLogger().log(Level.SEVERE, "[GUIManager] Failed to save file asynchronously " + file.getName(), e);
+                Bukkit.getLogger().log(Level.SEVERE, "Failed to save file asynchronously", e);
             }
         }
     }

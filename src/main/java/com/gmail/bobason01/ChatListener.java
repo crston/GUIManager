@@ -15,7 +15,6 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class ChatListener implements Listener {
 
@@ -30,12 +29,14 @@ public class ChatListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
+
         if (plugin.isAwaitingTarget(player)) {
             event.setCancelled(true);
             String targetName = event.getMessage();
             Bukkit.getScheduler().runTask(plugin, () -> processTargetInput(player, targetName));
             return;
         }
+
         if (plugin.hasChatSession(player)) {
             event.setCancelled(true);
             String message = event.getMessage();
@@ -46,16 +47,20 @@ public class ChatListener implements Listener {
     private void processTargetInput(Player player, String targetName) {
         TargetInfo targetInfo = plugin.getAwaitingTargetInfo(player);
         if (targetInfo == null) return;
+
         plugin.removeAwaitingTarget(player);
-        if (targetName.equalsIgnoreCase("cancel") || targetName.equalsIgnoreCase("취소")) {
-            player.sendMessage(ChatColor.YELLOW + "Target selection cancelled.");
+
+        if (targetName.equalsIgnoreCase("cancel") || targetName.equals("취소")) {
+            player.sendMessage(ChatColor.YELLOW + "Target selection cancelled");
             return;
         }
+
         Player target = Bukkit.getPlayer(targetName);
         if (target == null || !target.isOnline()) {
-            player.sendMessage(ChatColor.RED + "Player '" + targetName + "' not found or is offline.");
+            player.sendMessage(ChatColor.RED + "Player not found or is offline");
             return;
         }
+
         actionExecutor.executeCommand(player, targetInfo.command(), targetInfo.executor(), target.getName());
     }
 
@@ -63,20 +68,24 @@ public class ChatListener implements Listener {
         EditSession session = plugin.getChatSession(player);
         if (session == null) return;
 
-        if (message.equalsIgnoreCase("cancel") || message.equalsIgnoreCase("취소")) {
-            player.sendMessage(ChatColor.YELLOW + "Editing cancelled.");
+        if (message.equalsIgnoreCase("cancel") || message.equals("취소")) {
+            player.sendMessage(ChatColor.YELLOW + "Editing cancelled");
             plugin.endChatSession(player);
             ItemEditor.open(player, session);
             return;
         }
 
-        switch (session.getEditType()) {
+        EditSession.EditType type = session.getEditType();
+        switch (type) {
             case NAME:
                 handleNameEdit(player, session, message);
                 break;
             case CUSTOM_MODEL_DATA:
             case ITEM_DAMAGE:
                 handleIntegerEdit(player, session, message);
+                break;
+            case ITEM_MODEL_ID:
+                handleItemModelEdit(player, session, message);
                 break;
             case LORE_ADD:
             case LORE_EDIT:
@@ -109,14 +118,14 @@ public class ChatListener implements Listener {
         ItemStack currentItem = s.getItem();
         ItemStack newHead;
 
-        if (msg.length() > 16) {
+        if (msg.length() > 20) {
             newHead = HeadUtils.createHeadByBase64(msg);
         } else {
             newHead = HeadUtils.createHeadByName(msg);
         }
 
         if (newHead == null) {
-            p.sendMessage(ChatColor.RED + "Failed to create skull.");
+            p.sendMessage(ChatColor.RED + "Failed to create skull");
             return;
         }
 
@@ -127,7 +136,6 @@ public class ChatListener implements Listener {
             if (oldMeta.hasDisplayName()) newMeta.setDisplayName(oldMeta.getDisplayName());
             if (oldMeta.hasLore()) newMeta.setLore(oldMeta.getLore());
             if (oldMeta.hasCustomModelData()) newMeta.setCustomModelData(oldMeta.getCustomModelData());
-
             ActionKeyUtil.copyPersistentData(oldMeta.getPersistentDataContainer(), newMeta.getPersistentDataContainer());
         }
 
@@ -135,7 +143,29 @@ public class ChatListener implements Listener {
         newHead.setAmount(currentItem.getAmount());
 
         s.setItem(newHead);
-        p.sendMessage(ChatColor.GREEN + "Skull texture updated!");
+        p.sendMessage(ChatColor.GREEN + "Skull texture updated");
+    }
+
+    private void handleItemModelEdit(Player p, EditSession s, String msg) {
+        ItemMeta meta = s.getItem().getItemMeta();
+        if (meta == null) return;
+
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제") || msg.equalsIgnoreCase("none")) {
+            meta.getPersistentDataContainer().remove(GUIManager.KEY_ITEM_MODEL);
+            p.sendMessage(ChatColor.GREEN + "Item Model removed");
+        } else {
+            meta.getPersistentDataContainer().set(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING, msg);
+            try {
+                NamespacedKey modelKey = NamespacedKey.fromString(msg);
+                if (modelKey != null) {
+                    meta.setItemModel(modelKey);
+                    p.sendMessage(ChatColor.GREEN + "Item Model set to " + msg);
+                }
+            } catch (Throwable ignored) {
+                p.sendMessage(ChatColor.RED + "Invalid Namespace format");
+            }
+        }
+        s.getItem().setItemMeta(meta);
     }
 
     private void handleStringEdit(Player p, EditSession s, String msg) {
@@ -143,12 +173,13 @@ public class ChatListener implements Listener {
         if (meta == null) return;
         NamespacedKey key = ActionKeyUtil.getKeyFromType(s.getEditType());
         if (key == null) return;
-        if (msg.equalsIgnoreCase("delete") || msg.equalsIgnoreCase("삭제") || msg.equalsIgnoreCase("none")) {
+
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제") || msg.equalsIgnoreCase("none")) {
             meta.getPersistentDataContainer().remove(key);
-            p.sendMessage(ChatColor.GREEN + "Setting removed.");
+            p.sendMessage(ChatColor.GREEN + "Setting removed");
         } else {
             meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, msg);
-            p.sendMessage(ChatColor.GREEN + "Setting saved: " + msg);
+            p.sendMessage(ChatColor.GREEN + "Setting saved");
         }
         s.getItem().setItemMeta(meta);
     }
@@ -158,24 +189,21 @@ public class ChatListener implements Listener {
         if (meta == null) return;
         NamespacedKey key = ActionKeyUtil.getKeyFromType(s.getEditType());
         if (key == null) return;
-        if (msg.equalsIgnoreCase("delete") || msg.equalsIgnoreCase("삭제")) {
+
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제")) {
             meta.getPersistentDataContainer().remove(key);
             if(s.getEditType() == EditSession.EditType.CUSTOM_MODEL_DATA) meta.setCustomModelData(null);
             else if (meta instanceof Damageable) ((Damageable) meta).setDamage(0);
-            p.sendMessage(ChatColor.GREEN + "Value removed.");
+            p.sendMessage(ChatColor.GREEN + "Value removed");
         } else {
             try {
                 int value = Integer.parseInt(msg);
-                if (value < 0) {
-                    p.sendMessage(ChatColor.RED + "Value cannot be negative.");
-                    return;
-                }
                 meta.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, value);
                 if(s.getEditType() == EditSession.EditType.CUSTOM_MODEL_DATA) meta.setCustomModelData(value);
                 else if (meta instanceof Damageable) ((Damageable) meta).setDamage(value);
-                p.sendMessage(ChatColor.GREEN + "Value set to " + value);
+                p.sendMessage(ChatColor.GREEN + "Value set");
             } catch (NumberFormatException e) {
-                p.sendMessage(ChatColor.RED + "Invalid number format.");
+                p.sendMessage(ChatColor.RED + "Invalid number format");
             }
         }
         s.getItem().setItemMeta(meta);
@@ -186,20 +214,17 @@ public class ChatListener implements Listener {
         if (meta == null) return;
         NamespacedKey key = ActionKeyUtil.getKeyFromType(s.getEditType());
         if (key == null) return;
-        if (msg.equalsIgnoreCase("delete") || msg.equalsIgnoreCase("삭제")) {
+
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제")) {
             meta.getPersistentDataContainer().remove(key);
-            p.sendMessage(ChatColor.GREEN + "Value removed.");
+            p.sendMessage(ChatColor.GREEN + "Value removed");
         } else {
             try {
                 double value = Double.parseDouble(msg);
-                if (value < 0) {
-                    p.sendMessage(ChatColor.RED + "Value cannot be negative.");
-                    return;
-                }
                 meta.getPersistentDataContainer().set(key, PersistentDataType.DOUBLE, value);
-                p.sendMessage(ChatColor.GREEN + "Value set to " + value);
+                p.sendMessage(ChatColor.GREEN + "Value set");
             } catch (NumberFormatException e) {
-                p.sendMessage(ChatColor.RED + "Invalid number format.");
+                p.sendMessage(ChatColor.RED + "Invalid number format");
             }
         }
         s.getItem().setItemMeta(meta);
@@ -210,24 +235,26 @@ public class ChatListener implements Listener {
         if (meta == null) return;
         meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', msg));
         s.getItem().setItemMeta(meta);
-        p.sendMessage(ChatColor.GREEN + "Display name changed.");
+        p.sendMessage(ChatColor.GREEN + "Display name changed");
     }
 
     private void handleLoreEdit(Player p, EditSession s, String msg) {
         ItemMeta meta = s.getItem().getItemMeta();
         if (meta == null) return;
-        List<String> lore = meta.hasLore() ? new ArrayList<>(Objects.requireNonNull(meta.getLore())) : new ArrayList<>();
+
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         String text = ChatColor.translateAlternateColorCodes('&', msg);
+
         if (s.getEditType() == EditSession.EditType.LORE_ADD) {
             lore.add(text);
-            p.sendMessage(ChatColor.GREEN + "Lore line added.");
+            p.sendMessage(ChatColor.GREEN + "Lore line added");
         } else {
             int line = s.getLoreLineEditIndex();
             if (line >= 0 && line < lore.size()) {
                 lore.set(line, text);
-                p.sendMessage(ChatColor.GREEN + "Lore line " + (line + 1) + " changed.");
+                p.sendMessage(ChatColor.GREEN + "Lore line changed");
             } else {
-                p.sendMessage(ChatColor.RED + "Invalid lore line to edit.");
+                p.sendMessage(ChatColor.RED + "Invalid lore line to edit");
                 return;
             }
         }

@@ -11,16 +11,9 @@ public class GUIHolder implements InventoryHolder {
         this.guiId = guiId;
     }
 
-    public String getGuiId() {
-        return guiId;
-    }
-
-    public void setInventory(Inventory inventory) {
-        this.inventory = inventory;
-    }
+    public String getGuiId() { return guiId; }
+    public void setInventory(Inventory inventory) { this.inventory = inventory; }
 
     @Override
-    public Inventory getInventory() {
-        return inventory;
-    }
+    public Inventory getInventory() { return inventory; }
 }

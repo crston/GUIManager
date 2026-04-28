@@ -28,18 +28,15 @@ public class ActionExecutor {
             return;
         }
 
-        String actionId = guiId + ":" + slot + ":" + clickType.name();
+        String actionId = guiId + slot + clickType.name();
 
         executeVariantLogic(player, variant, actionId);
     }
 
-    // GUI 외부 인벤토리에서 실행되는 키바인딩 처리용 메서드 복구
     public void execute(Player player, ItemStack item, ActionKeyUtil.KeyAction keyAction) {
         if (item == null || item.getType().isAir()) return;
 
         String actionKey = keyAction.name();
-
-        // GUI 캐시가 없으므로 아이템에서 실시간으로 메타 추출
         GuiItemMeta meta = MetaExtractor.extract(plugin, item);
         GuiItemMeta.Variant variant = meta.get(actionKey);
 
@@ -47,7 +44,7 @@ public class ActionExecutor {
             return;
         }
 
-        String actionId = player.getName() + ":" + actionKey + ":" + variant.command.hashCode();
+        String actionId = player.getName() + actionKey + variant.command.hashCode();
 
         executeVariantLogic(player, variant, actionId);
     }
@@ -55,7 +52,10 @@ public class ActionExecutor {
     private void executeVariantLogic(Player player, GuiItemMeta.Variant variant, String actionId) {
         long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
         if (remainingCooldown > 0) {
-            player.sendMessage(ChatColor.RED + "You must wait " + String.format("%.1f", remainingCooldown / 1000.0) + " more seconds");
+            // 스트링 포맷팅 객체 생성 방지를 위한 직접 계산 로직
+            double sec = remainingCooldown / 1000.0;
+            double rounded = Math.round(sec * 10.0) / 10.0;
+            player.sendMessage(ChatColor.RED + "You must wait " + rounded + " more seconds");
             return;
         }
 
@@ -74,7 +74,8 @@ public class ActionExecutor {
 
         String command = variant.command;
 
-        if (variant.requireTarget && command.contains("{target}")) {
+        // 인덱스 기반 탐색으로 성능 향상
+        if (variant.requireTarget && command.indexOf("{target}") != -1) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, variant.executor));
             if (!variant.keepOpen) player.closeInventory();
             player.sendMessage(ChatColor.GREEN + "Please enter the target player name in chat Type cancel to abort");

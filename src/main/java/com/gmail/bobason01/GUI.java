@@ -16,7 +16,7 @@ public class GUI {
     public GUI(String title, int size) {
         this.title = title;
         if (size <= 0 || size % 9 != 0 || size > 54) {
-            throw new IllegalArgumentException("GUI size must be a multiple of 9 between 9 and 54.");
+            throw new IllegalArgumentException("Invalid GUI size");
         }
         this.size = size;
     }
@@ -28,33 +28,22 @@ public class GUI {
         other.items.forEach((slot, item) -> this.items.put(slot, item.clone()));
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public int getSize() { return size; }
 
     public void setSize(int newSize) {
-        if (newSize <= 0 || newSize % 9 != 0 || newSize > 54) {
-            return;
-        }
+        if (newSize <= 0 || newSize % 9 != 0 || newSize > 54) return;
         this.size = newSize;
         items.entrySet().removeIf(entry -> entry.getKey() >= newSize);
     }
 
     public void setItem(int slot, ItemStack item) {
         if (slot >= 0 && slot < size) {
-            if (item == null || item.getType().isAir()) {
-                items.remove(slot);
-            } else {
-                items.put(slot, item);
-            }
+            if (item == null || item.getType().isAir()) items.remove(slot);
+            else items.put(slot, item);
         }
     }
 
