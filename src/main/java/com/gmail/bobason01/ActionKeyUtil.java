@@ -2,12 +2,67 @@ package com.gmail.bobason01;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public final class ActionKeyUtil {
 
     public enum KeyAction { F, SHIFT_F, Q, SHIFT_Q }
 
     private ActionKeyUtil() {}
+
+    public static void copyPersistentData(PersistentDataContainer source, PersistentDataContainer target) {
+        List<NamespacedKey> allKeys = getAllKeys();
+        for (NamespacedKey key : allKeys) {
+            if (source.has(key, PersistentDataType.STRING)) {
+                target.set(key, PersistentDataType.STRING, Objects.requireNonNull(source.get(key, PersistentDataType.STRING)));
+            } else if (source.has(key, PersistentDataType.DOUBLE)) {
+                target.set(key, PersistentDataType.DOUBLE, Objects.requireNonNull(source.get(key, PersistentDataType.DOUBLE)));
+            } else if (source.has(key, PersistentDataType.BYTE)) {
+                target.set(key, PersistentDataType.BYTE, Objects.requireNonNull(source.get(key, PersistentDataType.BYTE)));
+            } else if (source.has(key, PersistentDataType.INTEGER)) {
+                target.set(key, PersistentDataType.INTEGER, Objects.requireNonNull(source.get(key, PersistentDataType.INTEGER)));
+            }
+        }
+    }
+
+    public static List<NamespacedKey> getAllKeys() {
+        List<NamespacedKey> keys = new ArrayList<>();
+        keys.add(GUIManager.KEY_PERMISSION_MESSAGE);
+        keys.add(GUIManager.KEY_REQUIRE_TARGET);
+        keys.add(GUIManager.KEY_CUSTOM_MODEL_DATA);
+        keys.add(GUIManager.KEY_ITEM_MODEL_ID);
+
+        keys.add(GUIManager.KEY_COMMAND_LEFT); keys.add(GUIManager.KEY_EXECUTOR_LEFT); keys.add(GUIManager.KEY_COOLDOWN_LEFT);
+        keys.add(GUIManager.KEY_MONEY_COST_LEFT); keys.add(GUIManager.KEY_COST_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_LEFT);
+
+        keys.add(GUIManager.KEY_COMMAND_SHIFT_LEFT); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_LEFT); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_LEFT);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
+
+        keys.add(GUIManager.KEY_COMMAND_RIGHT); keys.add(GUIManager.KEY_EXECUTOR_RIGHT); keys.add(GUIManager.KEY_COOLDOWN_RIGHT);
+        keys.add(GUIManager.KEY_MONEY_COST_RIGHT); keys.add(GUIManager.KEY_COST_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_RIGHT);
+
+        keys.add(GUIManager.KEY_COMMAND_SHIFT_RIGHT); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_RIGHT); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_RIGHT);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT);
+
+        keys.add(GUIManager.KEY_COMMAND_F); keys.add(GUIManager.KEY_EXECUTOR_F); keys.add(GUIManager.KEY_COOLDOWN_F);
+        keys.add(GUIManager.KEY_MONEY_COST_F); keys.add(GUIManager.KEY_COST_F); keys.add(GUIManager.KEY_PERMISSION_F);
+
+        keys.add(GUIManager.KEY_COMMAND_SHIFT_F); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_F); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_F);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_F); keys.add(GUIManager.KEY_COST_SHIFT_F); keys.add(GUIManager.KEY_PERMISSION_SHIFT_F);
+
+        keys.add(GUIManager.KEY_COMMAND_Q); keys.add(GUIManager.KEY_EXECUTOR_Q); keys.add(GUIManager.KEY_COOLDOWN_Q);
+        keys.add(GUIManager.KEY_MONEY_COST_Q); keys.add(GUIManager.KEY_COST_Q); keys.add(GUIManager.KEY_PERMISSION_Q);
+
+        keys.add(GUIManager.KEY_COMMAND_SHIFT_Q); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_Q); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_Q);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_PERMISSION_SHIFT_Q);
+
+        return keys;
+    }
 
     public static NamespacedKey getCommandKey(ClickType t) {
         if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_COMMAND_SHIFT_LEFT : GUIManager.KEY_COMMAND_SHIFT_RIGHT;

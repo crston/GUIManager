@@ -108,6 +108,14 @@ public final class GUIManager extends JavaPlugin {
         getLogger().info("GUIManager disabled");
     }
 
+    public void cleanupPlayer(UUID uuid) {
+        playersInEditMode.remove(uuid);
+        chatEditSessions.remove(uuid);
+        playersSettingCost.remove(uuid);
+        playersAwaitingTarget.remove(uuid);
+        playerCooldowns.remove(uuid);
+    }
+
     public GuiMetaCache getMetaCache() {
         return metaCache;
     }
@@ -126,32 +134,60 @@ public final class GUIManager extends JavaPlugin {
 
     private void startGuiUpdateTask() {
         this.guiUpdateTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
+            Map<Player, Map<Integer, ItemStack>> playerUpdates = new HashMap<>();
+
             for (Player player : Bukkit.getOnlinePlayers()) {
                 Inventory openInv = player.getOpenInventory().getTopInventory();
-
                 if (openInv == null || !(openInv.getHolder() instanceof GUIHolder)) continue;
-
-                GUIHolder holder = (GUIHolder) openInv.getHolder();
-                String guiId = holder.getGuiId();
-
                 if (isInEditMode(player)) continue;
 
-                GUI gui = getGui(guiId);
+                GUIHolder holder = (GUIHolder) openInv.getHolder();
+                GUI gui = getGui(holder.getGuiId());
                 if (gui == null) continue;
 
+                Map<Integer, ItemStack> templates = new HashMap<>();
                 for (Map.Entry<Integer, ItemStack> entry : gui.getItems().entrySet()) {
-                    int slot = entry.getKey();
-                    ItemStack templateItem = entry.getValue();
-
-                    if (templateItem == null || !hasPlaceholders(templateItem)) continue;
-
-                    ItemStack updatedItem = applyPlaceholders(templateItem.clone(), player);
-                    ItemStack currentItem = openInv.getItem(slot);
-
-                    if (!Objects.equals(currentItem, updatedItem)) {
-                        openInv.setItem(slot, updatedItem);
+                    if (entry.getValue() != null && hasPlaceholders(entry.getValue())) {
+                        templates.put(entry.getKey(), entry.getValue().clone());
                     }
                 }
+                if (!templates.isEmpty()) {
+                    playerUpdates.put(player, templates);
+                }
+            }
+
+            if (!playerUpdates.isEmpty()) {
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    Map<Player, Map<Integer, ItemStack>> processedUpdates = new HashMap<>();
+
+                    for (Map.Entry<Player, Map<Integer, ItemStack>> entry : playerUpdates.entrySet()) {
+                        Player player = entry.getKey();
+                        if (!player.isOnline()) continue;
+
+                        Map<Integer, ItemStack> applied = new HashMap<>();
+                        for (Map.Entry<Integer, ItemStack> itemEntry : entry.getValue().entrySet()) {
+                            applied.put(itemEntry.getKey(), applyPlaceholders(itemEntry.getValue(), player));
+                        }
+                        processedUpdates.put(player, applied);
+                    }
+
+                    Bukkit.getScheduler().runTask(this, () -> {
+                        for (Map.Entry<Player, Map<Integer, ItemStack>> entry : processedUpdates.entrySet()) {
+                            Player player = entry.getKey();
+                            if (!player.isOnline()) continue;
+
+                            Inventory openInv = player.getOpenInventory().getTopInventory();
+                            if (openInv != null && openInv.getHolder() instanceof GUIHolder) {
+                                for (Map.Entry<Integer, ItemStack> itemEntry : entry.getValue().entrySet()) {
+                                    ItemStack currentItem = openInv.getItem(itemEntry.getKey());
+                                    if (!Objects.equals(currentItem, itemEntry.getValue())) {
+                                        openInv.setItem(itemEntry.getKey(), itemEntry.getValue());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
             }
         }, 20L, 20L);
     }

@@ -36,16 +36,24 @@ public final class ItemEditor {
         }
     }
 
+    /**
+     * 아이템 에디터 인벤토리를 엽니다.
+     * GUIListener 에서 파싱할 수 있도록 타이틀 형식을 Slot 0 형태로 유지합니다.
+     */
     public static void open(Player player, EditSession session) {
-        String title = TITLE_PREFIX + session.getGuiName() + " (Slot " + session.getSlot() + ")";
+        // 타이틀 형식 고정: GUIListener 의 파싱 로직과 일치해야 함
+        String title = TITLE_PREFIX + session.getGuiName() + " Slot " + session.getSlot();
         Inventory inv = Bukkit.createInventory(null, 54, title);
 
-        // Row 1: General Settings
+        // Row 1: 일반 설정
         inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§b(Click to set via chat)"));
         inv.setItem(1, createModelDataItem(session));
         inv.setItem(2, createDamageItem(session));
         inv.setItem(3, createOptionItem(Material.BOOK, "§eItem Model ID", session, GUIManager.KEY_ITEM_MODEL_ID, "None", PersistentDataType.STRING));
+
+        // 중앙 아이콘 (4번 슬롯): 가장 중요함. 세션의 최신 아이템을 표시
         inv.setItem(4, session.getItem());
+
         inv.setItem(5, createTargetToggleItem(session));
         inv.setItem(6, createOptionItem(Material.PAPER, "§eNo-Permission Message", session, GUIManager.KEY_PERMISSION_MESSAGE, "Default message", PersistentDataType.STRING));
         inv.setItem(7, createOptionItem(Material.PLAYER_HEAD, "§eSet Skull Texture", "§b(Click to set Name or Base64)"));
@@ -75,7 +83,10 @@ public final class ItemEditor {
                 EditSession.EditType.COMMAND_SHIFT_Q, EditSession.EditType.MONEY_COST_SHIFT_Q, EditSession.EditType.COST_SHIFT_Q, EditSession.EditType.PERMISSION_SHIFT_Q, EditSession.EditType.COOLDOWN_SHIFT_Q, EditSession.EditType.EXECUTOR_SHIFT_Q,
                 session);
 
+        // 로어 아이템 및 페이지네이션 설정
         setLoreItemsAndPagination(inv, session);
+
+        // 인벤토리 열기
         player.openInventory(inv);
     }
 
@@ -158,7 +169,9 @@ public final class ItemEditor {
     }
 
     private static <T, Z> ItemStack createOptionItem(Material material, String name, EditSession session, NamespacedKey key, Z def, PersistentDataType<T, Z> type) {
-        PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(material);
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         Z value = pdc.getOrDefault(key, type, def);
         return createOptionItem(material, name, Arrays.asList("§7Current: §f" + value, "§b(Click to edit)"));
     }
@@ -172,21 +185,8 @@ public final class ItemEditor {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         String command = pdc.getOrDefault(commandKey, PersistentDataType.STRING, "None");
         double cooldown = pdc.getOrDefault(cooldownKey, PersistentDataType.DOUBLE, 0.0);
-        String executorName;
 
-        if (pdc.has(executorKey, PersistentDataType.BYTE)) {
-            byte executorOrdinal = pdc.getOrDefault(executorKey, PersistentDataType.BYTE, (byte) 0);
-            if (executorOrdinal >= 0 && executorOrdinal < GUIManager.ExecutorType.values().length) {
-                executorName = GUIManager.ExecutorType.values()[executorOrdinal].name();
-            } else {
-                executorName = GUIManager.ExecutorType.PLAYER.name();
-            }
-            pdc.remove(executorKey);
-            pdc.set(executorKey, PersistentDataType.STRING, executorName);
-            session.getItem().setItemMeta(meta);
-        } else {
-            executorName = pdc.getOrDefault(executorKey, PersistentDataType.STRING, GUIManager.ExecutorType.PLAYER.name());
-        }
+        String executorName = pdc.getOrDefault(executorKey, PersistentDataType.STRING, "PLAYER");
 
         List<String> lore = new ArrayList<>();
         lore.add("§7Command: §f" + command);
@@ -201,7 +201,9 @@ public final class ItemEditor {
     }
 
     private static ItemStack createKeepOpenItem(EditSession session, NamespacedKey key) {
-        PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(Material.ENDER_PEARL);
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         boolean enabled = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0) == 1;
         Material material = enabled ? Material.ENDER_EYE : Material.ENDER_PEARL;
         String name = "§eKeep GUI Open";
@@ -216,7 +218,9 @@ public final class ItemEditor {
     }
 
     private static ItemStack createItemCostItem(EditSession s, NamespacedKey key) {
-        PersistentDataContainer pdc = Objects.requireNonNull(s.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = s.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(Material.CHEST);
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         List<String> lore = new ArrayList<>(Arrays.asList("§b(Click to set items)", " "));
 
         if (pdc.has(key, PersistentDataType.STRING)) {
@@ -237,20 +241,26 @@ public final class ItemEditor {
         if (GUIManager.econ == null) {
             return createOptionItem(Material.GRAY_DYE, "§cSet Money Cost", Arrays.asList("§7Vault plugin not found.", "§7This feature is disabled."));
         }
-        PersistentDataContainer pdc = Objects.requireNonNull(s.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = s.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(Material.EMERALD);
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         double value = pdc.getOrDefault(key, PersistentDataType.DOUBLE, 0.0);
         return createOptionItem(Material.EMERALD, "Set Money Cost", Arrays.asList("§7Current: §f" + value, "§b(Click to set via chat)"));
     }
 
     private static ItemStack createTargetToggleItem(EditSession session) {
-        PersistentDataContainer pdc = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer();
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(Material.SKELETON_SKULL);
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
         boolean enabled = pdc.getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0) == 1;
         return createOptionItem(enabled ? Material.PLAYER_HEAD : Material.SKELETON_SKULL, "§eRequire Target Player", Arrays.asList(
                 enabled ? "§7Status: §aEnabled" : "§7Status: §cDisabled", "§fPrompts for a player name", "§ffor {target} placeholder.", " ", "§b(Click to toggle)"));
     }
 
     private static ItemStack createModelDataItem(EditSession session) {
-        int modelData = Objects.requireNonNull(session.getItem().getItemMeta()).getPersistentDataContainer().getOrDefault(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, 0);
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null) return new ItemStack(Material.ITEM_FRAME);
+        int modelData = meta.getPersistentDataContainer().getOrDefault(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, 0);
         return createOptionItem(Material.ITEM_FRAME, "§eCustom Model Data", Arrays.asList("§7Current: §f" + (modelData == 0 ? "None" : modelData), "§b(Click to set)"));
     }
 
