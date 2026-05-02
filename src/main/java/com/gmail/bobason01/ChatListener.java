@@ -2,6 +2,7 @@ package com.gmail.bobason01;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -80,6 +81,9 @@ public class ChatListener implements Listener {
             case NAME:
                 handleNameEdit(player, session, message);
                 break;
+            case MATERIAL:
+                handleMaterialEdit(player, session, message);
+                break;
             case CUSTOM_MODEL_DATA:
             case ITEM_DAMAGE:
                 handleIntegerEdit(player, session, message);
@@ -112,6 +116,21 @@ public class ChatListener implements Listener {
 
         plugin.endChatSession(player);
         ItemEditor.open(player, session);
+    }
+
+    private void handleMaterialEdit(Player p, EditSession s, String msg) {
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제") || msg.equalsIgnoreCase("none")) {
+            s.getItem().setType(Material.STONE);
+            p.sendMessage(ChatColor.GREEN + "Material reset to STONE");
+        } else {
+            Material mat = Material.matchMaterial(msg.toUpperCase().replace(" ", "_"));
+            if (mat != null && mat.isItem()) {
+                s.getItem().setType(mat);
+                p.sendMessage(ChatColor.GREEN + "Material set to " + mat.name());
+            } else {
+                p.sendMessage(ChatColor.RED + "Invalid material name");
+            }
+        }
     }
 
     private void handleSkullEdit(Player p, EditSession s, String msg) {
@@ -152,17 +171,33 @@ public class ChatListener implements Listener {
 
         if (msg.equalsIgnoreCase("delete") || msg.equals("삭제") || msg.equalsIgnoreCase("none")) {
             meta.getPersistentDataContainer().remove(GUIManager.KEY_ITEM_MODEL);
-            p.sendMessage(ChatColor.GREEN + "Item Model removed");
+            meta.getPersistentDataContainer().remove(GUIManager.KEY_CUSTOM_MODEL_DATA);
+            meta.setCustomModelData(null);
+            try { meta.setItemModel(null); } catch (Throwable ignored) {}
+            p.sendMessage(ChatColor.GREEN + "Model and CustomModelData removed");
         } else {
-            meta.getPersistentDataContainer().set(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING, msg);
             try {
-                NamespacedKey modelKey = NamespacedKey.fromString(msg);
-                if (modelKey != null) {
-                    meta.setItemModel(modelKey);
-                    p.sendMessage(ChatColor.GREEN + "Item Model set to " + msg);
-                }
-            } catch (Throwable ignored) {
-                p.sendMessage(ChatColor.RED + "Invalid Namespace format");
+                int cmdValue = Integer.parseInt(msg);
+                meta.getPersistentDataContainer().set(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, cmdValue);
+                meta.setCustomModelData(cmdValue);
+
+                meta.getPersistentDataContainer().remove(GUIManager.KEY_ITEM_MODEL);
+                try { meta.setItemModel(null); } catch (Throwable ignored) {}
+
+                p.sendMessage(ChatColor.GREEN + "Custom Model Data set to " + cmdValue);
+            } catch (NumberFormatException e) {
+                meta.getPersistentDataContainer().set(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING, msg);
+                try {
+                    NamespacedKey modelKey = NamespacedKey.fromString(msg.toLowerCase());
+                    if (modelKey != null) {
+                        meta.setItemModel(modelKey);
+                    }
+                } catch (Throwable ignored) {}
+
+                meta.getPersistentDataContainer().remove(GUIManager.KEY_CUSTOM_MODEL_DATA);
+                meta.setCustomModelData(null);
+
+                p.sendMessage(ChatColor.GREEN + "Item Model set to " + msg);
             }
         }
         s.getItem().setItemMeta(meta);

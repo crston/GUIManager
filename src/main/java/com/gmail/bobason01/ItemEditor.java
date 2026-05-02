@@ -33,13 +33,12 @@ public final class ItemEditor {
     public static void open(Player player, EditSession session) {
         String title = TITLE_PREFIX + session.getGuiName() + " Slot " + session.getSlot();
 
-        // [수정] 전용 홀더 생성 및 주입
         ItemEditorHolder holder = new ItemEditorHolder();
         Inventory inv = Bukkit.createInventory(holder, 54, title);
         holder.setInventory(inv);
 
         inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§bClick to set via chat"));
-        inv.setItem(1, createModelDataItem(session));
+        inv.setItem(1, createMaterialItem(session));
         inv.setItem(2, createDamageItem(session));
         inv.setItem(3, createItemModelItem(session));
         inv.setItem(4, session.getItem());
@@ -132,9 +131,9 @@ public final class ItemEditor {
         return createOptionItem(b == 1 ? Material.PLAYER_HEAD : Material.SKELETON_SKULL, "§eTarget", b == 1 ? "§aON" : "§cOFF");
     }
 
-    private static ItemStack createModelDataItem(EditSession s) {
-        int v = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, 0);
-        return createOptionItem(Material.ITEM_FRAME, "§eCMD", "§7Cur " + v);
+    private static ItemStack createMaterialItem(EditSession s) {
+        String matName = s.getItem().getType().name();
+        return createOptionItem(Material.GRASS_BLOCK, "§eMaterial", "§7Cur " + matName);
     }
 
     private static ItemStack createDamageItem(EditSession s) {
@@ -143,8 +142,22 @@ public final class ItemEditor {
     }
 
     private static ItemStack createItemModelItem(EditSession session) {
-        String val = session.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING, "None");
-        return createOptionItem(Material.PAINTING, "§eModel ID", "§7Cur " + val);
+        ItemMeta meta = session.getItem().getItemMeta();
+        String val = "None";
+        if (meta != null) {
+            if (meta.hasCustomModelData()) {
+                val = "CMD " + meta.getCustomModelData();
+            } else if (meta.getPersistentDataContainer().has(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING)) {
+                val = "Model " + meta.getPersistentDataContainer().get(GUIManager.KEY_ITEM_MODEL, PersistentDataType.STRING);
+            }
+        }
+        List<String> lore = Arrays.asList(
+                "§7Cur " + val,
+                " ",
+                "§bType number for CMD",
+                "§dType text for Model ID"
+        );
+        return createOptionItem(Material.PAINTING, "§eModel or CMD", lore);
     }
 
     private static void setLoreItems(Inventory inv, EditSession s) {
