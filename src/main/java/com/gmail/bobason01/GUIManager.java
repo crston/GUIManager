@@ -3,16 +3,13 @@ package com.gmail.bobason01;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,11 +19,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 public final class GUIManager extends JavaPlugin {
 
@@ -38,14 +33,8 @@ public final class GUIManager extends JavaPlugin {
     private LanguageManager languageManager;
     private final GuiMetaCache metaCache = new GuiMetaCache();
 
-    /**
-     * 실행자 타입을 정의하는 열거형입니다.
-     */
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    /**
-     * 아이템의 PersistentData에 사용될 키들입니다.
-     */
     public static NamespacedKey KEY_PERMISSION_MESSAGE;
     public static NamespacedKey KEY_REQUIRE_TARGET;
     public static NamespacedKey KEY_CUSTOM_MODEL_DATA;
@@ -260,6 +249,10 @@ public final class GUIManager extends JavaPlugin {
     public void saveGui(String id) {
         GUI gui = getGui(id);
         if (gui == null) return;
+
+        // 캐시를 즉시 갱신하여 리로드 없이 명령어가 바로 적용되게 합니다
+        metaCache.buildForGui(id, gui, this);
+
         File file = new File(guisFolder, id.toLowerCase() + ".yml");
         FileConfiguration config = new YamlConfiguration();
         config.set("title", gui.getTitle());
@@ -318,18 +311,11 @@ public final class GUIManager extends JavaPlugin {
 
     private void setupEconomy() { RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class); if (rsp != null) econ = rsp.getProvider(); }
 
-    /**
-     * GUI 자동 업데이트 태스크입니다.
-     * 편집 모드이거나 편집기 창이 열려있을 때는 업데이트를 중단하여 아이템 이동 방해를 방지합니다.
-     */
     private void startGuiUpdateTask() {
         this.guiUpdateTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 Inventory inv = player.getOpenInventory().getTopInventory();
 
-                // 1. 홀더가 GUIHolder인지 확인
-                // 2. 플레이어가 일반 편집 모드(isInEditMode)가 아닌지 확인
-                // 3. 현재 열린 창이 ItemEditorHolder(아이템 설정 창)가 아닌지 확인
                 if (inv.getHolder() instanceof GUIHolder && !isInEditMode(player) && !(inv.getHolder() instanceof ItemEditorHolder)) {
                     GUI gui = getGui(((GUIHolder) inv.getHolder()).getGuiId());
                     if (gui != null) {
@@ -337,7 +323,6 @@ public final class GUIManager extends JavaPlugin {
                             ItemStack updated = applyPlaceholders(item.clone(), player);
                             ItemStack current = inv.getItem(slot);
 
-                            // 현재 아이템과 업데이트될 아이템이 다를 때만 갱신 (커서 아이템 튕김 방지)
                             if (current == null || !current.equals(updated)) {
                                 inv.setItem(slot, updated);
                             }
