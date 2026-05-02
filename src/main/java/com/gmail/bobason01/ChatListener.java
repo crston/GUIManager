@@ -98,6 +98,10 @@ public class ChatListener implements Listener {
             case SKULL:
                 handleSkullEdit(player, session, message);
                 break;
+            case COMMAND_LEFT: case COMMAND_RIGHT: case COMMAND_SHIFT_LEFT: case COMMAND_SHIFT_RIGHT:
+            case COMMAND_F: case COMMAND_SHIFT_F: case COMMAND_Q: case COMMAND_SHIFT_Q:
+                handleCommandEdit(player, session, message);
+                break;
             case MONEY_COST_LEFT: case MONEY_COST_RIGHT: case MONEY_COST_SHIFT_LEFT: case MONEY_COST_SHIFT_RIGHT:
             case MONEY_COST_F: case MONEY_COST_SHIFT_F: case MONEY_COST_Q: case MONEY_COST_SHIFT_Q:
             case COOLDOWN_LEFT: case COOLDOWN_RIGHT: case COOLDOWN_SHIFT_LEFT: case COOLDOWN_SHIFT_RIGHT:
@@ -116,6 +120,27 @@ public class ChatListener implements Listener {
 
         plugin.endChatSession(player);
         ItemEditor.open(player, session);
+    }
+
+    private void handleCommandEdit(Player p, EditSession s, String msg) {
+        ItemMeta meta = s.getItem().getItemMeta();
+        if (meta == null) return;
+        NamespacedKey key = ActionKeyUtil.getKeyFromType(s.getEditType());
+        if (key == null) return;
+
+        if (msg.equalsIgnoreCase("delete") || msg.equals("삭제") || msg.equalsIgnoreCase("none")) {
+            meta.getPersistentDataContainer().remove(key);
+            p.sendMessage(ChatColor.GREEN + "All commands removed");
+        } else {
+            String current = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.STRING, "None");
+            if (current.equals("None") || current.isEmpty()) {
+                meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, msg);
+            } else {
+                meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, current + ";;" + msg);
+            }
+            p.sendMessage(ChatColor.GREEN + "Command added");
+        }
+        s.getItem().setItemMeta(meta);
     }
 
     private void handleMaterialEdit(Player p, EditSession s, String msg) {

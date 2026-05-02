@@ -157,7 +157,7 @@ public class GUIListener implements Listener {
                 event.setCancelled(true);
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && !clickedItem.getType().isAir()) {
-                    updateEditorIcon(player, clickedItem);
+                    updateEditorIcon(player, topInv, clickedItem);
                 }
             }
         }
@@ -190,7 +190,7 @@ public class GUIListener implements Listener {
                 gui.setItem(iSlot, currentIcon.clone());
                 plugin.saveGui(gName);
                 plugin.setEditMode(player, gName);
-                player.openInventory(plugin.getEditInventory(gName));
+                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(plugin.getEditInventory(gName)));
             }
             return;
         }
@@ -198,38 +198,106 @@ public class GUIListener implements Listener {
         if (slot >= 45 && slot <= 53) {
             if (slot == 53) {
                 session.setLorePage(event.isShiftClick() ? Math.max(0, session.getLorePage() - 1) : session.getLorePage() + 1);
-                ItemEditor.open(player, session);
+                ItemEditor.updateUI(inv, session);
             } else {
-                handleLoreClick(event, player, session);
+                handleLoreClick(event, player, session, inv);
             }
             return;
         }
 
         if (slot == 13 || slot == 22 || slot == 31 || slot == 40) {
             NamespacedKey key;
-            if (slot == 13) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
-            else if (slot == 22) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_RIGHT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
-            else if (slot == 31) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_F : GUIManager.KEY_KEEP_OPEN_SHIFT_F;
-            else key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_Q : GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+            ClickType click = event.getClick();
+            boolean isLeft = click == ClickType.LEFT || click == ClickType.SHIFT_LEFT;
+
+            if (slot == 13) key = isLeft ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
+            else if (slot == 22) key = isLeft ? GUIManager.KEY_KEEP_OPEN_RIGHT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
+            else if (slot == 31) key = isLeft ? GUIManager.KEY_KEEP_OPEN_F : GUIManager.KEY_KEEP_OPEN_SHIFT_F;
+            else key = isLeft ? GUIManager.KEY_KEEP_OPEN_Q : GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+
             toggleByte(session.getItem(), key);
-            ItemEditor.open(player, session);
+            ItemEditor.updateUI(inv, session);
             return;
         }
 
         EditSession.EditType type = getEditTypeFromSlot(slot);
         if (type != null) {
-            if (event.isRightClick() && !event.isShiftClick()) {
-                resetValue(session.getItem(), type);
-                ItemEditor.open(player, session);
+            if (type.name().startsWith("COMMAND_")) {
+                if (event.isShiftClick() && event.isLeftClick()) {
+                    cycleExecutor(player, session, slot, inv);
+                } else if (event.isShiftClick() && event.isRightClick()) {
+                    removeLastCommand(player, session, slot, inv);
+                } else if (event.isRightClick()) {
+                    EditSession.EditType cdType = EditSession.EditType.valueOf(type.name().replace("COMMAND", "COOLDOWN"));
+                    session.setEditType(cdType);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                } else {
+                    session.setEditType(type);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                }
             } else {
-                session.setEditType(type);
-                plugin.startChatSession(player, session);
-                player.closeInventory();
+                if (event.isRightClick() && !event.isShiftClick()) {
+                    resetValue(session.getItem(), type);
+                    ItemEditor.updateUI(inv, session);
+                } else {
+                    session.setEditType(type);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                }
             }
         }
     }
 
-    private void handleLoreClick(InventoryClickEvent event, Player player, EditSession session) {
+    private void cycleExecutor(Player player, EditSession session, int slot, Inventory inv) {
+        EditSession.EditType baseType = getEditTypeFromSlot(slot);
+        if (baseType == null) return;
+
+        String execName = baseType.name().replace("COMMAND", "EXECUTOR");
+        EditSession.EditType execType;
+        try {
+            execType = EditSession.EditType.valueOf(execName);
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+
+        NamespacedKey key = ActionKeyUtil.getKeyFromType(execType);
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null || key == null) return;
+
+        String cur = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.STRING, "PLAYER");
+        String next = cur.equals("PLAYER") ? "CONSOLE" : (cur.equals("CONSOLE") ? "OP" : "PLAYER");
+
+        meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, next);
+        session.getItem().setItemMeta(meta);
+
+        ItemEditor.updateUI(inv, session);
+    }
+
+    private void removeLastCommand(Player player, EditSession session, int slot, Inventory inv) {
+        EditSession.EditType type = getEditTypeFromSlot(slot);
+        if (type == null) return;
+        NamespacedKey key = ActionKeyUtil.getKeyFromType(type);
+        ItemMeta meta = session.getItem().getItemMeta();
+        if (meta == null || key == null) return;
+
+        String cmds = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.STRING, "None");
+        if (cmds.equals("None") || cmds.isEmpty()) return;
+
+        int lastIndex = cmds.lastIndexOf(";;");
+        if (lastIndex == -1) {
+            meta.getPersistentDataContainer().remove(key);
+        } else {
+            String newCmds = cmds.substring(0, lastIndex);
+            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, newCmds);
+        }
+
+        session.getItem().setItemMeta(meta);
+        ItemEditor.updateUI(inv, session);
+    }
+
+    private void handleLoreClick(InventoryClickEvent event, Player player, EditSession session, Inventory inv) {
         ItemStack item = event.getCurrentItem();
         if (item == null) return;
 
@@ -244,12 +312,12 @@ public class GUIListener implements Listener {
                 plugin.startChatSession(player, session);
                 player.closeInventory();
             } else if (event.isRightClick()) {
-                handleLoreRemove(player, session);
+                handleLoreRemove(session, inv);
             }
         }
     }
 
-    private void handleLoreRemove(Player player, EditSession session) {
+    private void handleLoreRemove(EditSession session, Inventory inv) {
         ItemMeta meta = session.getItem().getItemMeta();
         if (meta != null && meta.hasLore()) {
             List<String> lore = new ArrayList<>(meta.getLore());
@@ -260,7 +328,7 @@ public class GUIListener implements Listener {
                 session.getItem().setItemMeta(meta);
             }
         }
-        ItemEditor.open(player, session);
+        ItemEditor.updateUI(inv, session);
     }
 
     private void refreshEditorIcon(Player player, Inventory topInv) {
@@ -280,18 +348,22 @@ public class GUIListener implements Listener {
             icon = new ItemStack(Material.STONE);
         }
 
-        ItemEditor.open(player, new EditSession(gName, iSlot, icon));
+        EditSession session = new EditSession(gName, iSlot, icon);
+        ItemEditor.updateUI(topInv, session);
     }
 
-    private void updateEditorIcon(Player player, ItemStack newItem) {
+    private void updateEditorIcon(Player player, Inventory topInv, ItemStack newItem) {
         String title = player.getOpenInventory().getTitle();
         int slotIdx = title.lastIndexOf("Slot ");
         if (slotIdx == -1) return;
         String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
         int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
+
         ItemStack icon = newItem.clone();
         icon.setAmount(1);
-        ItemEditor.open(player, new EditSession(gName, iSlot, icon));
+
+        EditSession session = new EditSession(gName, iSlot, icon);
+        ItemEditor.updateUI(topInv, session);
     }
 
     private void toggleByte(ItemStack item, NamespacedKey key) {

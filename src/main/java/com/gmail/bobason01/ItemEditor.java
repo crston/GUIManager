@@ -37,6 +37,12 @@ public final class ItemEditor {
         Inventory inv = Bukkit.createInventory(holder, 54, title);
         holder.setInventory(inv);
 
+        updateUI(inv, session);
+
+        player.openInventory(inv);
+    }
+
+    public static void updateUI(Inventory inv, EditSession session) {
         inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§bClick to set via chat"));
         inv.setItem(1, createMaterialItem(session));
         inv.setItem(2, createDamageItem(session));
@@ -68,7 +74,6 @@ public final class ItemEditor {
                 GUIManager.KEY_KEEP_OPEN_Q, GUIManager.KEY_KEEP_OPEN_SHIFT_Q);
 
         setLoreItems(inv, session);
-        player.openInventory(inv);
     }
 
     private static void createActionRow(Inventory inv, int start, String n1, String n2, EditSession s,
@@ -108,12 +113,31 @@ public final class ItemEditor {
 
     private static ItemStack createCommandItem(EditSession s, String n, NamespacedKey ck, NamespacedKey cdk, NamespacedKey ek) {
         PersistentDataContainer pdc = s.getItem().getItemMeta().getPersistentDataContainer();
-        List<String> lore = Arrays.asList(
-                "§7Cmd " + pdc.getOrDefault(ck, PersistentDataType.STRING, "None"),
-                "§7CD " + pdc.getOrDefault(cdk, PersistentDataType.DOUBLE, 0.0),
-                "§7Exec " + pdc.getOrDefault(ek, PersistentDataType.STRING, "PLAYER"),
-                " ", "§bLeft Edit Cmd", "§cRight Edit CD", "§eS-Left Cycle Exec"
-        );
+        String cmds = pdc.getOrDefault(ck, PersistentDataType.STRING, "None");
+        double cd = pdc.getOrDefault(cdk, PersistentDataType.DOUBLE, 0.0);
+        String exec = pdc.getOrDefault(ek, PersistentDataType.STRING, "PLAYER");
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§7Cooldown " + cd);
+        lore.add("§7Executor " + exec);
+        lore.add(" ");
+        lore.add("§7Commands List");
+
+        if (!cmds.equals("None") && !cmds.isEmpty()) {
+            String[] arr = cmds.split(";;");
+            for (int i = 0; i < arr.length; i++) {
+                lore.add("§f" + (i + 1) + ". " + arr[i]);
+            }
+        } else {
+            lore.add("§fNone");
+        }
+
+        lore.add(" ");
+        lore.add("§bLeft Click Add Cmd");
+        lore.add("§cRight Click Edit CD");
+        lore.add("§eShift-Left Cycle Exec");
+        lore.add("§dShift-Right Remove Last Cmd");
+
         return createOptionItem(Material.COMMAND_BLOCK, n, lore);
     }
 
@@ -168,6 +192,8 @@ public final class ItemEditor {
             int idx = (page * 7) + i;
             if (idx < lore.size()) {
                 inv.setItem(46 + i, createOptionItem(Material.PAPER, "§eLore " + (idx + 1), Arrays.asList("§7" + lore.get(idx), "§bLeft Edit", "§cRight Remove")));
+            } else {
+                inv.setItem(46 + i, null);
             }
         }
         ItemStack a = new ItemStack(Material.ARROW);
