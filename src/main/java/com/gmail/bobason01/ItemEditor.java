@@ -98,10 +98,19 @@ public final class ItemEditor {
         inv.setItem(start + 8, createOptionItem(Material.IRON_BARS, "§f" + n2 + " Perm", s, p2, "None", PersistentDataType.STRING));
     }
 
+    private static int getLegacyOrInt(PersistentDataContainer pdc, NamespacedKey key) {
+        if (pdc.has(key, PersistentDataType.INTEGER)) {
+            return pdc.getOrDefault(key, PersistentDataType.INTEGER, 0);
+        } else if (pdc.has(key, PersistentDataType.BYTE)) {
+            return pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
+        }
+        return 0;
+    }
+
     private static ItemStack createKeepGuiButton(EditSession s, NamespacedKey k1, NamespacedKey k2) {
         PersistentDataContainer pdc = s.getItem().getItemMeta().getPersistentDataContainer();
-        boolean b1 = pdc.getOrDefault(k1, PersistentDataType.BYTE, (byte) 0) == 1;
-        boolean b2 = pdc.getOrDefault(k2, PersistentDataType.BYTE, (byte) 0) == 1;
+        boolean b1 = getLegacyOrInt(pdc, k1) == 1;
+        boolean b2 = getLegacyOrInt(pdc, k2) == 1;
 
         List<String> lore = Arrays.asList(
                 b1 ? "§aNormal: ON" : "§cNormal: OFF",
@@ -151,7 +160,7 @@ public final class ItemEditor {
     }
 
     private static ItemStack createTargetToggleItem(EditSession s) {
-        byte b = s.getItem().getItemMeta().getPersistentDataContainer().getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0);
+        int b = getLegacyOrInt(s.getItem().getItemMeta().getPersistentDataContainer(), GUIManager.KEY_REQUIRE_TARGET);
         return createOptionItem(b == 1 ? Material.PLAYER_HEAD : Material.SKELETON_SKULL, "§eTarget", b == 1 ? "§aON" : "§cOFF");
     }
 

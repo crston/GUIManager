@@ -55,7 +55,7 @@ public final class MetaExtractor {
                 GUIManager.KEY_COMMAND_SHIFT_Q, GUIManager.KEY_PERMISSION_SHIFT_Q, GUIManager.KEY_COST_SHIFT_Q,
                 GUIManager.KEY_MONEY_COST_SHIFT_Q, GUIManager.KEY_COOLDOWN_SHIFT_Q, GUIManager.KEY_EXECUTOR_SHIFT_Q, null);
 
-        if (pdc.getOrDefault(GUIManager.KEY_REQUIRE_TARGET, PersistentDataType.BYTE, (byte) 0) == 1) {
+        if (getLegacyOrInt(pdc, GUIManager.KEY_REQUIRE_TARGET) == 1) {
             String[] keys = {GuiItemMeta.LEFT, GuiItemMeta.SHIFT_LEFT, GuiItemMeta.RIGHT, GuiItemMeta.SHIFT_RIGHT, GuiItemMeta.F, GuiItemMeta.SHIFT_F, GuiItemMeta.Q, GuiItemMeta.SHIFT_Q};
             for (int i = 0; i < keys.length; i++) {
                 meta.getOrCreate(keys[i]).requireTarget = true;
@@ -91,7 +91,19 @@ public final class MetaExtractor {
 
         String ex = pdc.get(exec, PersistentDataType.STRING);
         v.executor = ex != null ? safeExec(ex) : GUIManager.ExecutorType.PLAYER;
-        if (keepOpen != null) v.keepOpen = pdc.getOrDefault(keepOpen, PersistentDataType.BYTE, (byte) 0) == 1;
+
+        if (keepOpen != null) {
+            v.keepOpen = getLegacyOrInt(pdc, keepOpen) == 1;
+        }
+    }
+
+    private static int getLegacyOrInt(PersistentDataContainer pdc, NamespacedKey key) {
+        if (pdc.has(key, PersistentDataType.INTEGER)) {
+            return pdc.getOrDefault(key, PersistentDataType.INTEGER, 0);
+        } else if (pdc.has(key, PersistentDataType.BYTE)) {
+            return pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
+        }
+        return 0;
     }
 
     private static GUIManager.ExecutorType safeExec(String s) {

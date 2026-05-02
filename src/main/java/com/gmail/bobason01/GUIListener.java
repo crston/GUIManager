@@ -1,6 +1,7 @@
 package com.gmail.bobason01;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -16,6 +17,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -92,27 +94,15 @@ public class GUIListener implements Listener {
                 event.setCancelled(true);
             }
         } else if (topInv.getHolder() instanceof ItemEditorHolder) {
-            boolean buttonDragged = false;
-            boolean iconDragged = false;
+            boolean buttonOrIconDragged = false;
             for (int slot : event.getRawSlots()) {
-                if (slot < topInv.getSize()) {
-                    if (isButtonSlot(slot, topInv)) {
-                        buttonDragged = true;
-                        break;
-                    }
-                    if (slot == 4) {
-                        iconDragged = true;
-                    }
+                if (slot < topInv.getSize() && (isButtonSlot(slot, topInv) || slot == 4)) {
+                    buttonOrIconDragged = true;
+                    break;
                 }
             }
-
-            if (buttonDragged) {
+            if (buttonOrIconDragged) {
                 event.setCancelled(true);
-                return;
-            }
-
-            if (iconDragged) {
-                Bukkit.getScheduler().runTask(plugin, () -> refreshEditorIcon(player, topInv));
             }
         }
     }
@@ -139,9 +129,38 @@ public class GUIListener implements Listener {
         }
     }
 
+    // 색상 코드에 의한 파싱 오류를 막기 위한 안전한 이름 추출 메서드
+    private String getGuiNameFromTitle(String title) {
+        String plain = ChatColor.stripColor(title);
+        int idx = plain.lastIndexOf(" Slot ");
+        if (idx != -1 && plain.startsWith("[Item Editor] ")) {
+            return plain.substring(14, idx).trim();
+        }
+        return null;
+    }
+
+    // 색상 코드에 의한 파싱 오류를 막기 위한 안전한 슬롯 번호 추출 메서드
+    private int getSlotFromTitle(String title) {
+        String plain = ChatColor.stripColor(title);
+        int idx = plain.lastIndexOf(" Slot ");
+        if (idx != -1) {
+            try {
+                return Integer.parseInt(plain.substring(idx + 6).trim());
+            } catch (Exception ignored) {}
+        }
+        return -1;
+    }
+
     private void handleItemEditorClick(InventoryClickEvent event, Player player) {
         Inventory clickedInv = event.getClickedInventory();
         if (clickedInv == null) return;
+
+        // 더블 클릭으로 인한 아이템 증발 및 메뉴 꼬임 원천 차단
+        if (event.getClick() == ClickType.DOUBLE_CLICK) {
+            event.setCancelled(true);
+            return;
+        }
+
         int slot = event.getSlot();
         Inventory topInv = event.getView().getTopInventory();
 
@@ -150,16 +169,56 @@ public class GUIListener implements Listener {
                 event.setCancelled(true);
                 processEditorButtons(event, player, slot, topInv);
             } else if (slot == 4) {
-                Bukkit.getScheduler().runTask(plugin, () -> refreshEditorIcon(player, topInv));
+                event.setCancelled(true);
+                ItemStack cursor = event.getCursor();
+                if (cursor != null && !cursor.getType().isAir()) {
+                    absorbIconItem(player, topInv, cursor);
+                }
             }
         } else {
             if (event.isShiftClick()) {
                 event.setCancelled(true);
                 ItemStack clickedItem = event.getCurrentItem();
                 if (clickedItem != null && !clickedItem.getType().isAir()) {
-                    updateEditorIcon(player, topInv, clickedItem);
+                    absorbIconItem(player, topInv, clickedItem);
                 }
             }
+        }
+    }
+
+    private void absorbIconItem(Player player, Inventory topInv, ItemStack source) {
+        ItemStack currentIcon = topInv.getItem(4);
+        if (currentIcon == null || source == null || source.getType().isAir()) return;
+
+        currentIcon.setType(source.getType());
+        ItemMeta curMeta = currentIcon.getItemMeta();
+        ItemMeta sourceMeta = source.getItemMeta();
+
+        if (curMeta != null && sourceMeta != null) {
+            if (sourceMeta.hasCustomModelData()) {
+                curMeta.setCustomModelData(sourceMeta.getCustomModelData());
+                curMeta.getPersistentDataContainer().set(GUIManager.KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, sourceMeta.getCustomModelData());
+            } else {
+                curMeta.setCustomModelData(null);
+                curMeta.getPersistentDataContainer().remove(GUIManager.KEY_CUSTOM_MODEL_DATA);
+            }
+
+            if (curMeta instanceof Damageable && sourceMeta instanceof Damageable) {
+                ((Damageable) curMeta).setDamage(((Damageable) sourceMeta).getDamage());
+            }
+            currentIcon.setItemMeta(curMeta);
+        }
+
+        topInv.setItem(4, currentIcon);
+
+        String title = player.getOpenInventory().getTitle();
+        String gName = getGuiNameFromTitle(title);
+        int iSlot = getSlotFromTitle(title);
+
+        if (gName != null && iSlot != -1) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                ItemEditor.updateUI(topInv, new EditSession(gName, iSlot, currentIcon.clone()));
+            });
         }
     }
 
@@ -175,23 +234,39 @@ public class GUIListener implements Listener {
         if (clickedItem == null || clickedItem.getType().isAir()) return;
 
         String title = event.getView().getTitle();
-        int slotIdx = title.lastIndexOf("Slot ");
-        if (slotIdx == -1) return;
-        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
-        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
+        String gName = getGuiNameFromTitle(title);
+        int iSlot = getSlotFromTitle(title);
+
+        // 이름 추출에 실패하면 중단 (에러 방지)
+        if (gName == null || iSlot == -1) return;
+
         ItemStack currentIcon = inv.getItem(4);
         if (currentIcon == null) return;
 
         EditSession session = new EditSession(gName, iSlot, currentIcon.clone());
 
+        // Back 버튼 완벽 수정 (안전한 저장 후 창 전환)
         if (slot == 8) {
             GUI gui = plugin.getGui(gName);
             if (gui != null) {
-                gui.setItem(iSlot, currentIcon.clone());
+                if (currentIcon.getType().isAir()) {
+                    gui.getItems().remove(iSlot);
+                } else {
+                    gui.setItem(iSlot, currentIcon.clone());
+                }
                 plugin.saveGui(gName);
                 plugin.setEditMode(player, gName);
-                Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(plugin.getEditInventory(gName)));
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    player.closeInventory();
+                    player.openInventory(plugin.getEditInventory(gName));
+                });
             }
+            return;
+        }
+
+        if (slot == 5) {
+            toggleByte(session.getItem(), GUIManager.KEY_REQUIRE_TARGET);
+            ItemEditor.updateUI(inv, session);
             return;
         }
 
@@ -205,15 +280,22 @@ public class GUIListener implements Listener {
             return;
         }
 
+        // Keep GUI 버튼 (좌클릭/우클릭 완벽 분리)
         if (slot == 13 || slot == 22 || slot == 31 || slot == 40) {
             NamespacedKey key;
-            ClickType click = event.getClick();
-            boolean isLeft = click == ClickType.LEFT || click == ClickType.SHIFT_LEFT;
-
-            if (slot == 13) key = isLeft ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
-            else if (slot == 22) key = isLeft ? GUIManager.KEY_KEEP_OPEN_RIGHT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
-            else if (slot == 31) key = isLeft ? GUIManager.KEY_KEEP_OPEN_F : GUIManager.KEY_KEEP_OPEN_SHIFT_F;
-            else key = isLeft ? GUIManager.KEY_KEEP_OPEN_Q : GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+            if (event.isLeftClick()) {
+                if (slot == 13) key = GUIManager.KEY_KEEP_OPEN_LEFT;
+                else if (slot == 22) key = GUIManager.KEY_KEEP_OPEN_RIGHT;
+                else if (slot == 31) key = GUIManager.KEY_KEEP_OPEN_F;
+                else key = GUIManager.KEY_KEEP_OPEN_Q;
+            } else if (event.isRightClick()) {
+                if (slot == 13) key = GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
+                else if (slot == 22) key = GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
+                else if (slot == 31) key = GUIManager.KEY_KEEP_OPEN_SHIFT_F;
+                else key = GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+            } else {
+                return;
+            }
 
             toggleByte(session.getItem(), key);
             ItemEditor.updateUI(inv, session);
@@ -333,10 +415,9 @@ public class GUIListener implements Listener {
 
     private void refreshEditorIcon(Player player, Inventory topInv) {
         String title = player.getOpenInventory().getTitle();
-        int slotIdx = title.lastIndexOf("Slot ");
-        if (slotIdx == -1) return;
-        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
-        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
+        String gName = getGuiNameFromTitle(title);
+        int iSlot = getSlotFromTitle(title);
+        if (gName == null || iSlot == -1) return;
 
         ItemStack newIcon = topInv.getItem(4);
         ItemStack icon;
@@ -352,25 +433,20 @@ public class GUIListener implements Listener {
         ItemEditor.updateUI(topInv, session);
     }
 
-    private void updateEditorIcon(Player player, Inventory topInv, ItemStack newItem) {
-        String title = player.getOpenInventory().getTitle();
-        int slotIdx = title.lastIndexOf("Slot ");
-        if (slotIdx == -1) return;
-        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
-        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
-
-        ItemStack icon = newItem.clone();
-        icon.setAmount(1);
-
-        EditSession session = new EditSession(gName, iSlot, icon);
-        ItemEditor.updateUI(topInv, session);
-    }
-
     private void toggleByte(ItemStack item, NamespacedKey key) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
-        byte v = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
-        meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) (v == 0 ? 1 : 0));
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        int v = 0;
+        if (pdc.has(key, PersistentDataType.INTEGER)) {
+            v = pdc.getOrDefault(key, PersistentDataType.INTEGER, 0);
+        } else if (pdc.has(key, PersistentDataType.BYTE)) {
+            v = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
+            pdc.remove(key);
+        }
+
+        pdc.set(key, PersistentDataType.INTEGER, v == 0 ? 1 : 0);
         item.setItemMeta(meta);
     }
 
@@ -400,7 +476,7 @@ public class GUIListener implements Listener {
         if (clickedInv == null) return;
         Inventory topInv = event.getView().getTopInventory();
 
-        if (event.getClick() == ClickType.RIGHT && clickedInv.equals(topInv)) {
+        if (event.isRightClick() && clickedInv.equals(topInv)) {
             ItemStack clicked = event.getCurrentItem();
             if (clicked != null && !clicked.getType().isAir()) {
                 event.setCancelled(true);
