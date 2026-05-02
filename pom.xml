@@ -6,7 +6,7 @@
 
     <groupId>com.gmail.bobason01</groupId>
     <artifactId>GUIManager</artifactId>
-    <version>30.0</version>
+    <version>40.0</version>
     <packaging>jar</packaging>
 
     <name>GUIManager</name>

@@ -470,6 +470,22 @@ public final class GUIManager extends JavaPlugin {
         return inv;
     }
 
+    /**
+     * 편집용 인벤토리를 생성합니다. Holder를 주입하여 GUIListener가 편집 모드를 감지할 수 있게 합니다.
+     */
+    public Inventory getEditInventory(String guiId) {
+        GUI gui = getGui(guiId);
+        if (gui == null) return null;
+
+        GUIHolder holder = new GUIHolder(guiId);
+        Inventory inv = Bukkit.createInventory(holder, gui.getSize(), gui.getTitle());
+        holder.setInventory(inv);
+
+        // 편집 모드에서는 원본 아이템을 그대로 배치합니다.
+        gui.getItems().forEach(inv::setItem);
+        return inv;
+    }
+
     public ItemStack applyPlaceholders(ItemStack item, Player player) {
         if (!placeholderApiEnabled || item == null || !item.hasItemMeta()) return item;
         ItemMeta meta = item.getItemMeta();

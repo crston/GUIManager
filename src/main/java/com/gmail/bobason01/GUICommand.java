@@ -132,7 +132,6 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             target = (Player) sender;
         }
 
-        // 일반 오픈 시 편집 모드 해제 (필수)
         plugin.removeEditMode(target);
 
         Inventory inv = plugin.getPlayerSpecificInventory(target, guiId);
@@ -179,7 +178,8 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player) {
             Player player = (Player) sender;
             plugin.setEditMode(player, id);
-            player.openInventory(plugin.getGui(id).getInventory());
+            Inventory inv = plugin.getEditInventory(id);
+            if (inv != null) player.openInventory(inv);
         }
     }
 
@@ -211,7 +211,8 @@ public class GUICommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player) {
             Player player = (Player) sender;
             plugin.setEditMode(player, targetId);
-            player.openInventory(plugin.getGui(targetId).getInventory());
+            Inventory inv = plugin.getEditInventory(targetId);
+            if (inv != null) player.openInventory(inv);
         }
     }
 
@@ -235,8 +236,12 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
         Player player = (Player) sender;
         plugin.setEditMode(player, id);
-        player.openInventory(gui.getInventory());
-        sender.sendMessage("§eEditing GUI: " + id);
+
+        Inventory inv = plugin.getEditInventory(id);
+        if (inv != null) {
+            player.openInventory(inv);
+            sender.sendMessage("§eEditing GUI: " + id);
+        }
     }
 
     private void handleDelete(CommandSender sender, String[] args) {
