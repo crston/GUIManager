@@ -1,7 +1,6 @@
 package com.gmail.bobason01;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -9,14 +8,14 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class GUIListener implements Listener {
 
@@ -32,8 +31,7 @@ public class GUIListener implements Listener {
         if (items == null || items.length == 0) return;
         Inventory inv = player.getInventory();
         ItemStack[] contents = inv.getContents();
-        for (int i = 0; i < items.length; i++) {
-            ItemStack cost = items[i];
+        for (ItemStack cost : items) {
             if (cost == null || cost.getType().isAir()) continue;
             int remaining = cost.getAmount();
             for (int j = 0; j < contents.length; j++) {
@@ -56,264 +54,234 @@ public class GUIListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
         Inventory topInv = event.getView().getTopInventory();
-        String title = event.getView().getTitle();
 
-        if (title.startsWith(ItemEditor.TITLE_PREFIX)) {
-            event.setCancelled(true);
-            handleItemEditorClick(event, player, title);
+        // 1. 아이템 편집기 창 (ItemEditorHolder)
+        if (topInv.getHolder() instanceof ItemEditorHolder) {
+            handleItemEditorClick(event, player);
             return;
         }
 
-        if (plugin.isSettingCost(player) && title.startsWith(ItemEditor.COST_TITLE_PREFIX)) {
-            return;
-        }
-
+        // 2. 메인 GUI 창 (GUIHolder)
         if (topInv.getHolder() instanceof GUIHolder) {
-            event.setCancelled(true);
             if (plugin.isInEditMode(player)) {
+                // 편집 모드: 기본적으로 취소하지 않음 -> 드래그 앤 드롭 자유로움
                 handleGuiEditorClick(event, player);
             } else {
+                // 일반 모드: 모든 이동을 전면 금지하고 기능만 실행
+                event.setCancelled(true);
                 handleNormalGuiClick(event, player);
             }
         }
     }
 
-    private void handleItemEditorClick(InventoryClickEvent event, Player player, String title) {
-        Inventory editorInv = event.getView().getTopInventory();
-        if (event.getClickedInventory() == null || !event.getClickedInventory().equals(editorInv)) {
-            if (event.isShiftClick()) {
-                ItemStack clicked = event.getCurrentItem();
-                if (clicked != null && !clicked.getType().isAir()) {
-                    updateAndRefreshEditor(player, title, editorInv, clicked);
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        Player player = (Player) event.getWhoClicked();
+        Inventory topInv = event.getView().getTopInventory();
+
+        // 마우스로 아이템을 훑어서 놓을 때의 처리
+        if (topInv.getHolder() instanceof GUIHolder) {
+            if (plugin.isInEditMode(player)) {
+                saveGuiLayoutAfterEdit(player);
+            } else {
+                event.setCancelled(true);
+            }
+        } else if (topInv.getHolder() instanceof ItemEditorHolder) {
+            for (int slot : event.getRawSlots()) {
+                if (slot < topInv.getSize() && isButtonSlot(slot)) {
+                    event.setCancelled(true);
+                    return;
                 }
             }
-            return;
-        }
-
-        int slot = event.getSlot();
-        ItemStack clickedItem = event.getCurrentItem();
-
-        if (slot == 4) {
-            ItemStack cursor = event.getCursor();
-            if (cursor != null && !cursor.getType().isAir()) {
-                updateAndRefreshEditor(player, title, editorInv, cursor);
-                event.setCursor(null);
-            }
-            return;
-        }
-
-        if (clickedItem == null || clickedItem.getType().isAir()) return;
-
-        int slotIdx = title.lastIndexOf("Slot ");
-        if (slotIdx == -1) return;
-        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
-        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
-        ItemStack currentIcon = editorInv.getItem(4);
-        if (currentIcon == null) return;
-
-        EditSession session = new EditSession(gName, iSlot, currentIcon.clone());
-
-        // [핵심 수정 부분] 8번 슬롯 (뒤로가기/저장) 처리
-        if (slot == 8) {
-            GUI gui = plugin.getGui(session.getGuiName());
-            if (gui != null) {
-                // 1. 변경사항 저장
-                gui.setItem(session.getSlot(), currentIcon);
-                plugin.saveGui(session.getGuiName());
-
-                // 2. 편집 모드 재확인 (혹시 모를 유실 방지)
-                plugin.setEditMode(player, session.getGuiName());
-
-                // 3. Holder가 주입된 편집용 인벤토리를 다시 열어줌
-                Inventory inv = plugin.getEditInventory(session.getGuiName());
-                if (inv != null) {
-                    player.openInventory(inv);
-                }
-            }
-            return;
-        }
-
-        // 나머지 설정 로직 (생략 없이 유지)
-        if (slot == 13 || slot == 22 || slot == 31 || slot == 40) {
-            NamespacedKey key;
-            if (slot == 13) key = (event.getClick() == ClickType.LEFT) ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
-            else if (slot == 22) key = (event.getClick() == ClickType.LEFT) ? GUIManager.KEY_KEEP_OPEN_RIGHT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
-            else if (slot == 31) key = (event.getClick() == ClickType.LEFT) ? GUIManager.KEY_KEEP_OPEN_F : GUIManager.KEY_KEEP_OPEN_SHIFT_F;
-            else key = (event.getClick() == ClickType.LEFT) ? GUIManager.KEY_KEEP_OPEN_Q : GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
-            toggleByte(session.getItem(), key, player, session);
-            return;
-        }
-
-        if (slot == 53) {
-            session.setLorePage(event.isShiftClick() ? Math.max(0, session.getLorePage() - 1) : session.getLorePage() + 1);
-            ItemEditor.open(player, session);
-            return;
-        }
-
-        if (slot >= 45 && slot <= 52) {
-            handleLoreClick(event, player, session);
-            return;
-        }
-
-        EditSession.EditType type = getEditTypeFromSlot(slot);
-        if (type == null) return;
-        if (event.isRightClick() && !event.isShiftClick()) {
-            handleValueReset(player, session, type);
-            return;
-        }
-        session.setEditType(type);
-        if (type.name().contains("COST") && !type.name().contains("MONEY")) {
-            openItemCostEditor(player, session);
-        } else if (type == EditSession.EditType.REQUIRE_TARGET) {
-            toggleByte(session.getItem(), ActionKeyUtil.getKeyFromType(type), player, session);
-        } else if (clickedItem.getType() == Material.COMMAND_BLOCK && event.isShiftClick()) {
-            cycleExecutor(player, session, slot);
-        } else {
-            plugin.startChatSession(player, session);
-            player.closeInventory();
         }
     }
 
-    private void handleGuiEditorClick(InventoryClickEvent event, Player player) {
-        Inventory top = event.getView().getTopInventory();
-        Inventory clickedInv = event.getClickedInventory();
-        if (clickedInv == null || !clickedInv.equals(top)) return;
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player)) return;
+        Player player = (Player) event.getPlayer();
+        Inventory topInv = event.getInventory();
 
-        ItemStack clickedItem = event.getCurrentItem();
-
-        if (event.getClick().isRightClick()) {
-            if (clickedItem != null && !clickedItem.getType().isAir()) {
-                String guiName = plugin.getEditingGuiName(player);
-                if (guiName != null) {
-                    EditSession session = new EditSession(guiName, event.getSlot(), clickedItem.clone());
-                    Bukkit.getScheduler().runTask(plugin, () -> ItemEditor.open(player, session));
-                }
-            }
-            return;
-        }
-
-        if (event.isShiftClick()) {
-            ItemStack cursor = player.getItemOnCursor();
+        // 편집 모드 창을 닫을 때 최종적으로 레이아웃을 한 번 더 저장하여 누락 방지
+        if (topInv.getHolder() instanceof GUIHolder && plugin.isInEditMode(player)) {
             String guiId = plugin.getEditingGuiName(player);
             GUI gui = plugin.getGui(guiId);
             if (gui != null) {
-                if (cursor != null && !cursor.getType().isAir()) {
-                    ItemStack ni = cursor.clone();
-                    ni.setAmount(1);
-                    gui.setItem(event.getSlot(), ni);
-                    top.setItem(event.getSlot(), ni);
-                } else {
-                    gui.getItems().remove(event.getSlot());
-                    top.setItem(event.getSlot(), null);
+                gui.getItems().clear();
+                for (int i = 0; i < topInv.getSize(); i++) {
+                    ItemStack item = topInv.getItem(i);
+                    if (item != null && !item.getType().isAir()) {
+                        gui.setItem(i, item.clone());
+                    }
                 }
                 plugin.saveGui(guiId);
             }
         }
     }
 
-    private void handleNormalGuiClick(InventoryClickEvent event, Player player) {
-        Inventory top = event.getView().getTopInventory();
-        if (top.getHolder() instanceof GUIHolder) {
-            ItemStack item = event.getCurrentItem();
-            if (item == null || item.getType().isAir()) return;
-            actionExecutor.execute(player, ((GUIHolder) top.getHolder()).getGuiId(), event.getSlot(), item, event.getClick());
+    private void handleItemEditorClick(InventoryClickEvent event, Player player) {
+        Inventory clickedInv = event.getClickedInventory();
+        if (clickedInv == null) return;
+        int slot = event.getSlot();
+        Inventory topInv = event.getView().getTopInventory();
+
+        if (clickedInv.equals(topInv)) {
+            if (isButtonSlot(slot)) {
+                event.setCancelled(true);
+                processEditorButtons(event, player, slot, topInv);
+            }
+        } else {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+                ItemStack clickedItem = event.getCurrentItem();
+                if (clickedItem != null && !clickedItem.getType().isAir()) {
+                    updateEditorIcon(player, clickedItem);
+                }
+            }
         }
     }
 
-    private void handleLoreClick(InventoryClickEvent event, Player player, EditSession session) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null) return;
-        if (item.getType() == Material.WRITABLE_BOOK) {
-            session.setEditType(EditSession.EditType.LORE_ADD);
-            plugin.startChatSession(player, session);
-            player.closeInventory();
-        } else if (item.getType() == Material.PAPER) {
-            session.setLoreLineEditIndex((session.getLorePage() * 7) + (event.getSlot() - 46));
-            if (event.isLeftClick()) {
-                session.setEditType(EditSession.EditType.LORE_EDIT);
+    private boolean isButtonSlot(int slot) {
+        if (slot == 4) return false;
+        return (slot >= 0 && slot <= 8) || (slot >= 9 && slot <= 44) || (slot >= 45 && slot <= 53);
+    }
+
+    private void processEditorButtons(InventoryClickEvent event, Player player, int slot, Inventory inv) {
+        ItemStack clickedItem = event.getCurrentItem();
+        if (clickedItem == null || clickedItem.getType().isAir()) return;
+
+        String title = event.getView().getTitle();
+        int slotIdx = title.lastIndexOf("Slot ");
+        if (slotIdx == -1) return;
+        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
+        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
+        ItemStack currentIcon = inv.getItem(4);
+        if (currentIcon == null) return;
+
+        EditSession session = new EditSession(gName, iSlot, currentIcon.clone());
+
+        if (slot == 8) {
+            GUI gui = plugin.getGui(gName);
+            if (gui != null) {
+                gui.setItem(iSlot, currentIcon.clone());
+                plugin.saveGui(gName);
+                plugin.setEditMode(player, gName);
+                player.openInventory(plugin.getEditInventory(gName));
+            }
+            return;
+        }
+
+        if (slot == 13 || slot == 22 || slot == 31 || slot == 40) {
+            NamespacedKey key;
+            if (slot == 13) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT;
+            else if (slot == 22) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_RIGHT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
+            else if (slot == 31) key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_F : GUIManager.KEY_KEEP_OPEN_SHIFT_F;
+            else key = event.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_Q : GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+            toggleByte(session.getItem(), key);
+            ItemEditor.open(player, session);
+            return;
+        }
+
+        EditSession.EditType type = getEditTypeFromSlot(slot);
+        if (type != null) {
+            if (event.isRightClick() && !event.isShiftClick()) {
+                resetValue(session.getItem(), type);
+                ItemEditor.open(player, session);
+            } else {
+                session.setEditType(type);
                 plugin.startChatSession(player, session);
                 player.closeInventory();
-            } else if (event.isRightClick()) {
-                handleLoreRemove(player, session);
             }
         }
     }
 
-    private void handleLoreRemove(Player player, EditSession session) {
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta != null && meta.hasLore()) {
-            List<String> lore = new ArrayList<>(meta.getLore());
-            int idx = session.getLoreLineEditIndex();
-            if (idx >= 0 && idx < lore.size()) {
-                lore.remove(idx);
-                meta.setLore(lore.isEmpty() ? null : lore);
-                session.getItem().setItemMeta(meta);
-            }
-        }
-        ItemEditor.open(player, session);
+    private void updateEditorIcon(Player player, ItemStack newItem) {
+        String title = player.getOpenInventory().getTitle();
+        int slotIdx = title.lastIndexOf("Slot ");
+        if (slotIdx == -1) return;
+        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
+        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
+        ItemStack icon = newItem.clone();
+        icon.setAmount(1);
+        ItemEditor.open(player, new EditSession(gName, iSlot, icon));
     }
 
-    private void openItemCostEditor(Player player, EditSession session) {
-        plugin.startCostSession(player, session);
-        player.openInventory(Bukkit.createInventory(null, 54, ItemEditor.COST_TITLE_PREFIX + session.getEditType().name()));
-    }
-
-    private void toggleByte(ItemStack item, NamespacedKey key, Player player, EditSession session) {
+    private void toggleByte(ItemStack item, NamespacedKey key) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         byte v = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
         meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) (v == 0 ? 1 : 0));
         item.setItemMeta(meta);
-        ItemEditor.open(player, session);
     }
 
-    private void cycleExecutor(Player player, EditSession session, int slot) {
-        EditSession.EditType base = getEditTypeFromSlot(slot);
-        if (base == null) return;
-        NamespacedKey key = ActionKeyUtil.getKeyFromType(EditSession.EditType.valueOf(base.name().replace("COMMAND", "EXECUTOR")));
-        ItemMeta meta = session.getItem().getItemMeta();
-        if (meta == null) return;
-        String cur = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.STRING, "PLAYER");
-        String next = cur.equals("PLAYER") ? "CONSOLE" : (cur.equals("CONSOLE") ? "OP" : "PLAYER");
-        meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, next);
-        session.getItem().setItemMeta(meta);
-        ItemEditor.open(player, session);
-    }
-
-    private void handleValueReset(Player player, EditSession session, EditSession.EditType type) {
-        ItemMeta meta = session.getItem().getItemMeta();
+    private void resetValue(ItemStack item, EditSession.EditType type) {
+        ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         NamespacedKey key = ActionKeyUtil.getKeyFromType(type);
         if (key != null) meta.getPersistentDataContainer().remove(key);
         if (type == EditSession.EditType.CUSTOM_MODEL_DATA) meta.setCustomModelData(null);
         else if (type == EditSession.EditType.ITEM_DAMAGE && meta instanceof Damageable) ((Damageable) meta).setDamage(0);
-        else if (type == EditSession.EditType.ITEM_MODEL_ID) { try { meta.setItemModel(null); } catch (Throwable ignored) {} }
-        session.getItem().setItemMeta(meta);
-        ItemEditor.open(player, session);
+        item.setItemMeta(meta);
     }
 
-    private void updateAndRefreshEditor(Player player, String title, Inventory editorInv, ItemStack sourceItem) {
-        ItemStack currentIcon = editorInv.getItem(4);
-        if (currentIcon == null) return;
-        ItemStack newIcon = sourceItem.clone();
-        newIcon.setAmount(1);
-        ItemMeta curM = currentIcon.getItemMeta();
-        ItemMeta srcM = newIcon.getItemMeta();
-        if (curM != null && srcM != null) {
-            if (curM.hasDisplayName()) srcM.setDisplayName(curM.getDisplayName());
-            if (curM.hasLore()) srcM.setLore(curM.getLore());
-            ActionKeyUtil.copyPersistentData(curM.getPersistentDataContainer(), srcM.getPersistentDataContainer());
+    private void handleGuiEditorClick(InventoryClickEvent event, Player player) {
+        Inventory clickedInv = event.getClickedInventory();
+        if (clickedInv == null) return;
+        Inventory topInv = event.getView().getTopInventory();
+
+        // 우클릭으로 아이템 세부 설정(Item Editor) 창 열기
+        if (event.getClick() == ClickType.RIGHT && clickedInv.equals(topInv)) {
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked != null && !clicked.getType().isAir()) {
+                event.setCancelled(true); // 우클릭 시 반 세트가 집히는 것 방지
+                String guiId = plugin.getEditingGuiName(player);
+                ItemEditor.open(player, new EditSession(guiId, event.getSlot(), clicked.clone()));
+                return;
+            }
         }
-        newIcon.setItemMeta(srcM);
-        int slotIdx = title.lastIndexOf("Slot ");
-        String gName = title.substring(ItemEditor.TITLE_PREFIX.length(), slotIdx).trim();
-        int iSlot = Integer.parseInt(title.substring(slotIdx + 5).trim());
-        ItemEditor.open(player, new EditSession(gName, iSlot, newIcon));
+
+        // 그 외(좌클릭 이동 등)는 취소하지 않음. 마인크래프트가 아이템을 알아서 옮기게 둠
+        // 변경된 레이아웃을 서버 데이터에 반영하기 위해 1틱 뒤에 저장 작업을 스케줄링
+        saveGuiLayoutAfterEdit(player);
+    }
+
+    /**
+     * 편집 창에서 아이템 이동이 끝난 후(1틱 뒤) 현재 인벤토리 상태를 읽어와 저장합니다.
+     */
+    private void saveGuiLayoutAfterEdit(Player player) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Inventory topInv = player.getOpenInventory().getTopInventory();
+            if (topInv.getHolder() instanceof GUIHolder) {
+                String guiId = plugin.getEditingGuiName(player);
+                GUI gui = plugin.getGui(guiId);
+                if (gui != null) {
+                    gui.getItems().clear(); // 기존 아이템을 지우고 새로 정렬
+                    for (int i = 0; i < topInv.getSize(); i++) {
+                        ItemStack item = topInv.getItem(i);
+                        if (item != null && !item.getType().isAir()) {
+                            gui.setItem(i, item.clone());
+                        }
+                    }
+                    plugin.saveGui(guiId); // 파일에 즉시 저장
+                }
+            }
+        });
+    }
+
+    private void handleNormalGuiClick(InventoryClickEvent event, Player player) {
+        String guiId = ((GUIHolder) event.getView().getTopInventory().getHolder()).getGuiId();
+        actionExecutor.execute(player, guiId, event.getSlot(), event.getCurrentItem(), event.getClick());
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        plugin.cleanupPlayer(event.getPlayer().getUniqueId());
     }
 
     private EditSession.EditType getEditTypeFromSlot(int slot) {

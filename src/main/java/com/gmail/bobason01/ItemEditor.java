@@ -32,7 +32,11 @@ public final class ItemEditor {
 
     public static void open(Player player, EditSession session) {
         String title = TITLE_PREFIX + session.getGuiName() + " Slot " + session.getSlot();
-        Inventory inv = Bukkit.createInventory(null, 54, title);
+
+        // [수정] 전용 홀더 생성 및 주입
+        ItemEditorHolder holder = new ItemEditorHolder();
+        Inventory inv = Bukkit.createInventory(holder, 54, title);
+        holder.setInventory(inv);
 
         inv.setItem(0, createOptionItem(Material.NAME_TAG, "§eSet Name", "§bClick to set via chat"));
         inv.setItem(1, createModelDataItem(session));
