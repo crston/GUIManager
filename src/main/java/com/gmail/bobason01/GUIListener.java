@@ -14,13 +14,14 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GUIListener implements Listener {
@@ -66,6 +67,81 @@ public class GUIListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         Inventory topInv = event.getView().getTopInventory();
 
+        if (topInv.getHolder() instanceof MainGuiEditorHolder) {
+            event.setCancelled(true);
+            Inventory clickedInv = event.getClickedInventory();
+            if (clickedInv != null && clickedInv.equals(topInv)) {
+                MainGuiEditorHolder holder = (MainGuiEditorHolder) topInv.getHolder();
+                String guiId = holder.getGuiId();
+                GUI gui = plugin.getGui(guiId);
+                if (gui == null) return;
+
+                int slot = event.getSlot();
+                if (slot == 11) {
+                    EditSession session = new EditSession(guiId, -1, null);
+                    session.setEditType(EditSession.EditType.GUI_TITLE);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                } else if (slot == 13) {
+                    int rows = gui.getSize() / 9;
+                    if (event.isLeftClick() && rows < 6) rows++;
+                    else if (event.isRightClick() && rows > 1) rows--;
+                    gui.setSize(rows * 9);
+                    plugin.saveGui(guiId);
+                    MainGuiEditor.open(player, gui);
+                } else if (slot == 15) {
+                    EditSession session = new EditSession(guiId, -1, null);
+                    session.setEditType(EditSession.EditType.GUI_PERMISSION);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                } else if (slot == 29) {
+                    EditSession session = new EditSession(guiId, -1, null);
+                    session.setEditType(EditSession.EditType.GUI_TARGETS);
+                    plugin.startChatSession(player, session);
+                    player.closeInventory();
+                } else if (slot == 33) {
+                    plugin.setEditMode(player, guiId);
+                    player.openInventory(plugin.getEditInventory(guiId));
+                }
+            }
+            return;
+        }
+
+        if (topInv.getHolder() instanceof ItemCostRewardHolder) {
+            Inventory clickedInv = event.getClickedInventory();
+            ItemCostRewardHolder holder = (ItemCostRewardHolder) topInv.getHolder();
+
+            if (clickedInv != null && clickedInv.equals(topInv)) {
+                int slot = event.getSlot();
+                if (slot >= 36) {
+                    event.setCancelled(true);
+                    if (slot == 48 && holder.getPage() > 0) {
+                        syncToAllItems(topInv, holder.getPage(), holder.getAllItems());
+                        holder.setPage(holder.getPage() - 1);
+                        refreshVirtualGUI(topInv, holder);
+                    } else if (slot == 49) {
+                        Bukkit.getScheduler().runTask(plugin, player::closeInventory);
+                    } else if (slot == 50) {
+                        syncToAllItems(topInv, holder.getPage(), holder.getAllItems());
+                        holder.setPage(holder.getPage() + 1);
+                        refreshVirtualGUI(topInv, holder);
+                    }
+                }
+            } else if (event.isShiftClick()) {
+                int firstEmpty = -1;
+                for (int i = 0; i < 36; i++) {
+                    if (topInv.getItem(i) == null || topInv.getItem(i).getType().isAir()) {
+                        firstEmpty = i;
+                        break;
+                    }
+                }
+                if (firstEmpty == -1) {
+                    event.setCancelled(true);
+                }
+            }
+            return;
+        }
+
         if (topInv.getHolder() instanceof ItemEditorHolder) {
             handleItemEditorClick(event, player);
             return;
@@ -86,6 +162,21 @@ public class GUIListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
         Inventory topInv = event.getView().getTopInventory();
+
+        if (topInv.getHolder() instanceof MainGuiEditorHolder) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (topInv.getHolder() instanceof ItemCostRewardHolder) {
+            for (int slot : event.getRawSlots()) {
+                if (slot >= 36 && slot < topInv.getSize()) {
+                    event.setCancelled(true);
+                    break;
+                }
+            }
+            return;
+        }
 
         if (topInv.getHolder() instanceof GUIHolder) {
             if (plugin.isInEditMode(player)) {
@@ -113,23 +204,137 @@ public class GUIListener implements Listener {
         Player player = (Player) event.getPlayer();
         Inventory topInv = event.getInventory();
 
+        if (topInv.getHolder() instanceof ItemCostRewardHolder) {
+            ItemCostRewardHolder holder = (ItemCostRewardHolder) topInv.getHolder();
+            EditSession session = holder.getSession();
+            NamespacedKey key = holder.getTargetKey();
+
+            syncToAllItems(topInv, holder.getPage(), holder.getAllItems());
+
+            List<ItemStack> finalItems = new ArrayList<>();
+            for (ItemStack item : holder.getAllItems()) {
+                if (item != null && !item.getType().isAir()) {
+                    finalItems.add(item);
+                }
+            }
+
+            ItemMeta meta = session.getItem().getItemMeta();
+            if (meta != null) {
+                if (finalItems.isEmpty()) {
+                    meta.getPersistentDataContainer().remove(key);
+                } else {
+                    try {
+                        String base64 = ItemSerialization.itemStackArrayToBase64(finalItems.toArray(new ItemStack[0]));
+                        meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, base64);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Failed to save items");
+                    }
+                }
+                session.getItem().setItemMeta(meta);
+            }
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                ItemEditor.open(player, session);
+            });
+            return;
+        }
+
         if (topInv.getHolder() instanceof GUIHolder && plugin.isInEditMode(player)) {
             String guiId = plugin.getEditingGuiName(player);
             GUI gui = plugin.getGui(guiId);
             if (gui != null) {
-                gui.getItems().clear();
+                // 인벤토리 크기만큼만 순회하여 보이지 않는 슬롯의 데이터 유실 방지
                 for (int i = 0; i < topInv.getSize(); i++) {
                     ItemStack item = topInv.getItem(i);
-                    if (item != null && !item.getType().isAir()) {
+                    if (item == null || item.getType().isAir()) {
+                        gui.getItems().remove(i);
+                    } else {
                         gui.setItem(i, item.clone());
                     }
                 }
                 plugin.saveGui(guiId);
             }
+            plugin.removeEditMode(player);
         }
     }
 
-    // 색상 코드에 의한 파싱 오류를 막기 위한 안전한 이름 추출 메서드
+    private void syncToAllItems(Inventory inv, int page, List<ItemStack> allItems) {
+        int start = page * 36;
+        for(int i = 0; i < 36; i++) {
+            ItemStack item = inv.getItem(i);
+            int targetIdx = start + i;
+            while(allItems.size() <= targetIdx) allItems.add(null);
+            allItems.set(targetIdx, item == null || item.getType().isAir() ? null : item.clone());
+        }
+        while(!allItems.isEmpty() && allItems.get(allItems.size()-1) == null) {
+            allItems.remove(allItems.size()-1);
+        }
+    }
+
+    private void refreshVirtualGUI(Inventory inv, ItemCostRewardHolder holder) {
+        for (int i = 0; i < 36; i++) {
+            inv.setItem(i, null);
+        }
+        int start = holder.getPage() * 36;
+        List<ItemStack> allItems = holder.getAllItems();
+        for (int i = 0; i < 36; i++) {
+            if (start + i < allItems.size()) {
+                inv.setItem(i, allItems.get(start + i));
+            }
+        }
+
+        ItemStack prev = new ItemStack(Material.ARROW);
+        ItemMeta pMeta = prev.getItemMeta();
+        pMeta.setDisplayName("§ePrevious Page");
+        prev.setItemMeta(pMeta);
+        inv.setItem(48, holder.getPage() > 0 ? prev : null);
+
+        ItemStack next = new ItemStack(Material.ARROW);
+        ItemMeta nMeta = next.getItemMeta();
+        nMeta.setDisplayName("§eNext Page");
+        next.setItemMeta(nMeta);
+        inv.setItem(50, next);
+    }
+
+    private void openVirtualGUI(Player player, EditSession session, NamespacedKey targetKey, String type) {
+        player.closeInventory();
+
+        List<ItemStack> allItems = new ArrayList<>();
+        ItemMeta sessionMeta = session.getItem().getItemMeta();
+        if (sessionMeta != null && sessionMeta.getPersistentDataContainer().has(targetKey, PersistentDataType.STRING)) {
+            String base64 = sessionMeta.getPersistentDataContainer().get(targetKey, PersistentDataType.STRING);
+            try {
+                ItemStack[] items = ItemSerialization.itemStackArrayFromBase64(base64);
+                allItems.addAll(Arrays.asList(items));
+            } catch (Exception ignored) {}
+        }
+
+        ItemCostRewardHolder holder = new ItemCostRewardHolder(session, targetKey, type, 0, allItems);
+        Inventory inv = Bukkit.createInventory(holder, 54, "§8Set " + type + " Items");
+        holder.setInventory(inv);
+
+        ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta paneMeta = pane.getItemMeta();
+        if (paneMeta != null) {
+            paneMeta.setDisplayName(" ");
+            pane.setItemMeta(paneMeta);
+        }
+        for (int i = 36; i < 45; i++) {
+            inv.setItem(i, pane);
+        }
+
+        ItemStack backBtn = new ItemStack(Material.OAK_DOOR);
+        ItemMeta backMeta = backBtn.getItemMeta();
+        if (backMeta != null) {
+            backMeta.setDisplayName("§cBack");
+            backBtn.setItemMeta(backMeta);
+        }
+        inv.setItem(49, backBtn);
+
+        refreshVirtualGUI(inv, holder);
+        player.openInventory(inv);
+    }
+
     private String getGuiNameFromTitle(String title) {
         String plain = ChatColor.stripColor(title);
         int idx = plain.lastIndexOf(" Slot ");
@@ -139,7 +344,6 @@ public class GUIListener implements Listener {
         return null;
     }
 
-    // 색상 코드에 의한 파싱 오류를 막기 위한 안전한 슬롯 번호 추출 메서드
     private int getSlotFromTitle(String title) {
         String plain = ChatColor.stripColor(title);
         int idx = plain.lastIndexOf(" Slot ");
@@ -155,7 +359,6 @@ public class GUIListener implements Listener {
         Inventory clickedInv = event.getClickedInventory();
         if (clickedInv == null) return;
 
-        // 더블 클릭으로 인한 아이템 증발 및 메뉴 꼬임 원천 차단
         if (event.getClick() == ClickType.DOUBLE_CLICK) {
             event.setCancelled(true);
             return;
@@ -202,10 +405,6 @@ public class GUIListener implements Listener {
                 curMeta.setCustomModelData(null);
                 curMeta.getPersistentDataContainer().remove(GUIManager.KEY_CUSTOM_MODEL_DATA);
             }
-
-            if (curMeta instanceof Damageable && sourceMeta instanceof Damageable) {
-                ((Damageable) curMeta).setDamage(((Damageable) sourceMeta).getDamage());
-            }
             currentIcon.setItemMeta(curMeta);
         }
 
@@ -237,7 +436,6 @@ public class GUIListener implements Listener {
         String gName = getGuiNameFromTitle(title);
         int iSlot = getSlotFromTitle(title);
 
-        // 이름 추출에 실패하면 중단 (에러 방지)
         if (gName == null || iSlot == -1) return;
 
         ItemStack currentIcon = inv.getItem(4);
@@ -245,7 +443,6 @@ public class GUIListener implements Listener {
 
         EditSession session = new EditSession(gName, iSlot, currentIcon.clone());
 
-        // Back 버튼 완벽 수정 (안전한 저장 후 창 전환)
         if (slot == 8) {
             GUI gui = plugin.getGui(gName);
             if (gui != null) {
@@ -272,7 +469,11 @@ public class GUIListener implements Listener {
 
         if (slot >= 45 && slot <= 53) {
             if (slot == 53) {
-                session.setLorePage(event.isShiftClick() ? Math.max(0, session.getLorePage() - 1) : session.getLorePage() + 1);
+                if (event.isLeftClick()) {
+                    session.setLorePage(session.getLorePage() + 1);
+                } else if (event.isRightClick()) {
+                    session.setLorePage(Math.max(0, session.getLorePage() - 1));
+                }
                 ItemEditor.updateUI(inv, session);
             } else {
                 handleLoreClick(event, player, session, inv);
@@ -280,7 +481,6 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Keep GUI 버튼 (좌클릭/우클릭 완벽 분리)
         if (slot == 13 || slot == 22 || slot == 31 || slot == 40) {
             NamespacedKey key;
             if (event.isLeftClick()) {
@@ -304,21 +504,67 @@ public class GUIListener implements Listener {
 
         EditSession.EditType type = getEditTypeFromSlot(slot);
         if (type != null) {
+            if (type.name().startsWith("COST_")) {
+                NamespacedKey costKey = ActionKeyUtil.getKeyFromType(type);
+                NamespacedKey rewardKey = ActionKeyUtil.getRewardKeyFromCostType(type);
+                ItemMeta meta = session.getItem().getItemMeta();
+                if (meta == null) return;
+
+                if (event.isShiftClick() && event.isLeftClick()) {
+                    meta.getPersistentDataContainer().remove(costKey);
+                    session.getItem().setItemMeta(meta);
+                    ItemEditor.updateUI(inv, session);
+                } else if (event.isShiftClick() && event.isRightClick()) {
+                    meta.getPersistentDataContainer().remove(rewardKey);
+                    session.getItem().setItemMeta(meta);
+                    ItemEditor.updateUI(inv, session);
+                } else if (event.isLeftClick()) {
+                    openVirtualGUI(player, session, costKey, "Cost");
+                } else if (event.isRightClick()) {
+                    openVirtualGUI(player, session, rewardKey, "Reward");
+                }
+                return;
+            }
+
+            if (type == EditSession.EditType.ITEM_FLAGS) {
+                ItemMeta meta = session.getItem().getItemMeta();
+                if (meta != null) {
+                    List<ItemFlag> currentFlags = new ArrayList<>(meta.getItemFlags());
+                    ItemFlag[] allFlags = ItemFlag.values();
+                    if (event.isLeftClick()) {
+                        for (ItemFlag flag : allFlags) {
+                            if (!currentFlags.contains(flag)) {
+                                meta.addItemFlags(flag);
+                                break;
+                            }
+                        }
+                    } else if (event.isRightClick()) {
+                        if (!currentFlags.isEmpty()) {
+                            meta.removeItemFlags(currentFlags.get(currentFlags.size() - 1));
+                        }
+                    }
+                    session.getItem().setItemMeta(meta);
+                    ItemEditor.updateUI(inv, session);
+                }
+                return;
+            }
+
             if (type.name().startsWith("COMMAND_")) {
                 if (event.isShiftClick() && event.isLeftClick()) {
                     cycleExecutor(player, session, slot, inv);
                 } else if (event.isShiftClick() && event.isRightClick()) {
-                    removeLastCommand(player, session, slot, inv);
-                } else if (event.isRightClick()) {
                     EditSession.EditType cdType = EditSession.EditType.valueOf(type.name().replace("COMMAND", "COOLDOWN"));
                     session.setEditType(cdType);
                     plugin.startChatSession(player, session);
                     player.closeInventory();
-                } else {
+                } else if (event.isRightClick()) {
+                    removeLastCommand(player, session, slot, inv);
+                } else if (event.isLeftClick()) {
                     session.setEditType(type);
                     plugin.startChatSession(player, session);
                     player.closeInventory();
                 }
+                return;
             } else {
                 if (event.isRightClick() && !event.isShiftClick()) {
                     resetValue(session.getItem(), type);
@@ -335,14 +581,9 @@ public class GUIListener implements Listener {
     private void cycleExecutor(Player player, EditSession session, int slot, Inventory inv) {
         EditSession.EditType baseType = getEditTypeFromSlot(slot);
         if (baseType == null) return;
-
         String execName = baseType.name().replace("COMMAND", "EXECUTOR");
         EditSession.EditType execType;
-        try {
-            execType = EditSession.EditType.valueOf(execName);
-        } catch (IllegalArgumentException e) {
-            return;
-        }
+        try { execType = EditSession.EditType.valueOf(execName); } catch (IllegalArgumentException e) { return; }
 
         NamespacedKey key = ActionKeyUtil.getKeyFromType(execType);
         ItemMeta meta = session.getItem().getItemMeta();
@@ -350,10 +591,8 @@ public class GUIListener implements Listener {
 
         String cur = meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.STRING, "PLAYER");
         String next = cur.equals("PLAYER") ? "CONSOLE" : (cur.equals("CONSOLE") ? "OP" : "PLAYER");
-
         meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, next);
         session.getItem().setItemMeta(meta);
-
         ItemEditor.updateUI(inv, session);
     }
 
@@ -371,10 +610,8 @@ public class GUIListener implements Listener {
         if (lastIndex == -1) {
             meta.getPersistentDataContainer().remove(key);
         } else {
-            String newCmds = cmds.substring(0, lastIndex);
-            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, newCmds);
+            meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, cmds.substring(0, lastIndex));
         }
-
         session.getItem().setItemMeta(meta);
         ItemEditor.updateUI(inv, session);
     }
@@ -413,60 +650,27 @@ public class GUIListener implements Listener {
         ItemEditor.updateUI(inv, session);
     }
 
-    private void refreshEditorIcon(Player player, Inventory topInv) {
-        String title = player.getOpenInventory().getTitle();
-        String gName = getGuiNameFromTitle(title);
-        int iSlot = getSlotFromTitle(title);
-        if (gName == null || iSlot == -1) return;
-
-        ItemStack newIcon = topInv.getItem(4);
-        ItemStack icon;
-
-        if (newIcon != null && !newIcon.getType().isAir()) {
-            icon = newIcon.clone();
-            icon.setAmount(1);
-        } else {
-            icon = new ItemStack(Material.STONE);
-        }
-
-        EditSession session = new EditSession(gName, iSlot, icon);
-        ItemEditor.updateUI(topInv, session);
-    }
-
     private void toggleByte(ItemStack item, NamespacedKey key) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-
         int v = 0;
-        if (pdc.has(key, PersistentDataType.INTEGER)) {
-            v = pdc.getOrDefault(key, PersistentDataType.INTEGER, 0);
-        } else if (pdc.has(key, PersistentDataType.BYTE)) {
-            v = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0);
-            pdc.remove(key);
-        }
-
+        if (pdc.has(key, PersistentDataType.INTEGER)) v = pdc.getOrDefault(key, PersistentDataType.INTEGER, 0);
+        else if (pdc.has(key, PersistentDataType.BYTE)) { v = pdc.getOrDefault(key, PersistentDataType.BYTE, (byte) 0); pdc.remove(key); }
         pdc.set(key, PersistentDataType.INTEGER, v == 0 ? 1 : 0);
         item.setItemMeta(meta);
     }
 
     private void resetValue(ItemStack item, EditSession.EditType type) {
-        if (type.name().equals("MATERIAL")) {
-            item.setType(Material.STONE);
-            return;
-        }
-
+        if (type.name().equals("MATERIAL")) { item.setType(Material.STONE); return; }
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
         NamespacedKey key = ActionKeyUtil.getKeyFromType(type);
         if (key != null) meta.getPersistentDataContainer().remove(key);
-
         if (type == EditSession.EditType.ITEM_MODEL_ID) {
             meta.setCustomModelData(null);
             meta.getPersistentDataContainer().remove(GUIManager.KEY_ITEM_MODEL);
             try { meta.setItemModel(null); } catch (Throwable ignored) {}
-        } else if (type == EditSession.EditType.ITEM_DAMAGE && meta instanceof Damageable) {
-            ((Damageable) meta).setDamage(0);
         }
         item.setItemMeta(meta);
     }
@@ -477,15 +681,17 @@ public class GUIListener implements Listener {
         Inventory topInv = event.getView().getTopInventory();
 
         if (event.isRightClick() && clickedInv.equals(topInv)) {
+            event.setCancelled(true);
             ItemStack clicked = event.getCurrentItem();
-            if (clicked != null && !clicked.getType().isAir()) {
-                event.setCancelled(true);
-                String guiId = plugin.getEditingGuiName(player);
-                ItemEditor.open(player, new EditSession(guiId, event.getSlot(), clicked.clone()));
-                return;
-            }
-        }
+            String guiId = plugin.getEditingGuiName(player);
 
+            if (clicked == null || clicked.getType().isAir()) {
+                clicked = new ItemStack(Material.STONE);
+            }
+
+            ItemEditor.open(player, new EditSession(guiId, event.getSlot(), clicked.clone()));
+            return;
+        }
         saveGuiLayoutAfterEdit(player);
     }
 
@@ -496,10 +702,11 @@ public class GUIListener implements Listener {
                 String guiId = plugin.getEditingGuiName(player);
                 GUI gui = plugin.getGui(guiId);
                 if (gui != null) {
-                    gui.getItems().clear();
                     for (int i = 0; i < topInv.getSize(); i++) {
                         ItemStack item = topInv.getItem(i);
-                        if (item != null && !item.getType().isAir()) {
+                        if (item == null || item.getType().isAir()) {
+                            gui.getItems().remove(i);
+                        } else {
                             gui.setItem(i, item.clone());
                         }
                     }
@@ -523,7 +730,7 @@ public class GUIListener implements Listener {
         switch (slot) {
             case 0: return EditSession.EditType.NAME;
             case 1: return EditSession.EditType.MATERIAL;
-            case 2: return EditSession.EditType.ITEM_DAMAGE;
+            case 2: return EditSession.EditType.ITEM_FLAGS;
             case 3: return EditSession.EditType.ITEM_MODEL_ID;
             case 5: return EditSession.EditType.REQUIRE_TARGET;
             case 6: return EditSession.EditType.PERMISSION_MESSAGE;

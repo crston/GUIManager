@@ -1,18 +1,16 @@
 package com.gmail.bobason01;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 public class GUICommand implements CommandExecutor, TabCompleter {
 
@@ -25,300 +23,259 @@ public class GUICommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            sendHelp(sender);
+            sender.sendMessage(ChatColor.RED + "Usage: /gui <create|edit|open|list|reload|delete|copy|import>");
             return true;
         }
 
-        String subCommand = args[0].toLowerCase();
+        String sub = args[0].toLowerCase();
 
-        switch (subCommand) {
-            case "open":
-                handleOpen(sender, args);
-                break;
-            case "create":
-                handleCreate(sender, args);
-                break;
-            case "copy":
-                handleCopy(sender, args);
-                break;
-            case "edit":
-                handleEdit(sender, args);
-                break;
-            case "delete":
-                handleDelete(sender, args);
-                break;
-            case "list":
-                handleList(sender);
-                break;
-            case "reload":
-                handleReload(sender);
-                break;
-            case "import":
-                handleImport(sender, args);
-                break;
-            default:
-                sendHelp(sender);
-                break;
+        // [OPEN] - GUI 열기
+        if (sub.equals("open")) {
+            if (!sender.hasPermission("guimanager.open")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            if (args.length < 2) {
+                sender.sendMessage(ChatColor.RED + "Usage: /gui open <gui id> [player]");
+                return true;
+            }
+            String guiId = args[1];
+            GUI gui = plugin.getGui(guiId);
+            if (gui == null) {
+                sender.sendMessage(ChatColor.RED + "GUI not found");
+                return true;
+            }
+
+            Player targetPlayer;
+            if (args.length >= 3) {
+                if (!sender.hasPermission("guimanager.open.others")) {
+                    sender.sendMessage(ChatColor.RED + "No permission to open for others");
+                    return true;
+                }
+                targetPlayer = Bukkit.getPlayer(args[2]);
+                if (targetPlayer == null) {
+                    sender.sendMessage(ChatColor.RED + "Player not found");
+                    return true;
+                }
+            } else {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage(ChatColor.RED + "Console must specify a player");
+                    return true;
+                }
+                targetPlayer = (Player) sender;
+            }
+
+            targetPlayer.openInventory(plugin.getPlayerSpecificInventory(targetPlayer, guiId));
+            return true;
         }
 
-        return true;
-    }
-
-    private void handleImport(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("guimanager.import")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
+        // [IMPORT] - 다른 플러그인에서 가져오기
+        if (sub.equals("import")) {
+            if (!sender.hasPermission("guimanager.import")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            if (args.length < 2) {
+                sender.sendMessage(ChatColor.RED + "Usage: /gui import <guiplus|deluxemenus> [filename]");
+                return true;
+            }
+            String type = args[1].toLowerCase();
+            if (type.equals("guiplus")) {
+                new GUIPlusImporter(plugin).importFromGUIPlus(sender);
+            } else if (type.equals("deluxemenus")) {
+                if (args.length < 3) {
+                    sender.sendMessage(ChatColor.RED + "Usage: /gui import deluxemenus <filename.yml>");
+                    return true;
+                }
+                File file = new File("plugins/DeluxeMenus/gui_menus", args[2]);
+                new DeluxeMenusImporter(plugin).importFromDeluxeMenus((Player) sender, file);
+            }
+            return true;
         }
 
-        if (args.length < 2) {
-            sender.sendMessage("§cUsage: /gui import <guiplus|deluxemenus>");
-            return;
+        // [LIST] - 목록 확인
+        if (sub.equals("list")) {
+            if (!sender.hasPermission("guimanager.list")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            sender.sendMessage(ChatColor.GREEN + "Available GUIs:");
+            for (String id : plugin.getGuis().keySet()) {
+                sender.sendMessage(ChatColor.YELLOW + "- " + id);
+            }
+            return true;
         }
 
-        String type = args[1].toLowerCase();
+        // [RELOAD] - 리로드
+        if (sub.equals("reload")) {
+            if (!sender.hasPermission("guimanager.reload")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            plugin.saveGuis();
+            plugin.loadGuis();
+            sender.sendMessage(ChatColor.GREEN + "Plugin reloaded and GUIs saved");
+            return true;
+        }
 
-        if (type.equals("guiplus")) {
-            new GUIPlusImporter(plugin).importFromGUIPlus(sender);
-        } else if (type.equals("deluxemenus")) {
-            if (!(sender instanceof Player)) return;
+        // [DELETE] - 삭제
+        if (sub.equals("delete")) {
+            if (!sender.hasPermission("guimanager.delete")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            if (args.length < 2) {
+                sender.sendMessage(ChatColor.RED + "Usage: /gui delete <gui id>");
+                return true;
+            }
+            String guiId = args[1];
+            if (plugin.getGui(guiId) == null) {
+                sender.sendMessage(ChatColor.RED + "GUI not found");
+                return true;
+            }
+            plugin.removeGui(guiId);
+            sender.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' has been deleted");
+            return true;
+        }
+
+        // [COPY] - 복사
+        if (sub.equals("copy")) {
+            if (!sender.hasPermission("guimanager.copy")) {
+                sender.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
             if (args.length < 3) {
-                sender.sendMessage("§cUsage: /gui import deluxemenus <filename>");
-                return;
+                sender.sendMessage(ChatColor.RED + "Usage: /gui copy <source id> <new id>");
+                return true;
+            }
+            String sourceId = args[1];
+            String newId = args[2];
+            GUI sourceGui = plugin.getGui(sourceId);
+            if (sourceGui == null) {
+                sender.sendMessage(ChatColor.RED + "Source GUI not found");
+                return true;
+            }
+            if (plugin.getGui(newId) != null) {
+                sender.sendMessage(ChatColor.RED + "Target ID already exists");
+                return true;
             }
 
-            String fileName = args[2];
-            if (!fileName.endsWith(".yml")) fileName += ".yml";
+            GUI newGui = new GUI(sourceGui.getTitle(), sourceGui.getSize());
+            newGui.setId(newId);
+            newGui.setPermission(sourceGui.getPermission());
+            newGui.setTargets(sourceGui.getTargets());
+            sourceGui.getItems().forEach((slot, item) -> newGui.setItem(slot, item.clone()));
 
-            File dmFolder = new File(plugin.getDataFolder().getParentFile(), "DeluxeMenus/gui_menus");
-            File targetFile = new File(dmFolder, fileName);
-
-            new DeluxeMenusImporter(plugin).importFromDeluxeMenus((Player) sender, targetFile);
-        } else {
-            sender.sendMessage("§cUnknown import type: " + type);
-        }
-    }
-
-    private void handleOpen(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("guimanager.open")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        if (args.length < 2) {
-            sender.sendMessage("§cUsage: /gui open <id> [player]");
-            return;
+            plugin.addGui(newId, newGui);
+            plugin.saveGui(newId);
+            sender.sendMessage(ChatColor.GREEN + "GUI copied from '" + sourceId + "' to '" + newId + "'");
+            return true;
         }
 
-        String guiId = args[1];
-        GUI gui = plugin.getGui(guiId);
-
-        if (gui == null) {
-            sender.sendMessage("§cGUI not found.");
-            return;
+        // 플레이어 전용 명령어 체크
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ChatColor.RED + "Only players can use create and edit commands");
+            return true;
         }
-
-        Player target;
-        if (args.length >= 3) {
-            if (!sender.hasPermission("guimanager.open.others")) {
-                sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-                return;
-            }
-            target = Bukkit.getPlayer(args[2]);
-            if (target == null) {
-                sender.sendMessage("§cPlayer not found.");
-                return;
-            }
-        } else {
-            if (!(sender instanceof Player)) return;
-            target = (Player) sender;
-        }
-
-        plugin.removeEditMode(target);
-
-        Inventory inv = plugin.getPlayerSpecificInventory(target, guiId);
-        if (inv != null) {
-            target.openInventory(inv);
-        }
-    }
-
-    private void handleCreate(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("guimanager.create")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        if (args.length < 4) {
-            sender.sendMessage("§cUsage: /gui create <id> <rows> <title>");
-            return;
-        }
-
-        String id = args[1];
-        if (plugin.getGui(id) != null) {
-            sender.sendMessage("§cGUI ID already exists.");
-            return;
-        }
-
-        int rows;
-        try {
-            rows = Integer.parseInt(args[2]);
-            if (rows < 1 || rows > 6) {
-                sender.sendMessage("§cRows must be 1-6.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            sender.sendMessage("§cInvalid row number.");
-            return;
-        }
-
-        StringBuilder titleBuilder = new StringBuilder();
-        for (int i = 3; i < args.length; i++) titleBuilder.append(args[i]).append(" ");
-        String title = titleBuilder.toString().trim();
-
-        plugin.createGui(id, rows, title);
-        sender.sendMessage("§aGUI '" + id + "' created.");
-
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-            plugin.setEditMode(player, id);
-            Inventory inv = plugin.getEditInventory(id);
-            if (inv != null) player.openInventory(inv);
-        }
-    }
-
-    private void handleCopy(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("guimanager.copy")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        if (args.length < 3) {
-            sender.sendMessage("§cUsage: /gui copy <source> <target>");
-            return;
-        }
-
-        String sourceId = args[1];
-        String targetId = args[2];
-
-        if (plugin.getGui(sourceId) == null) {
-            sender.sendMessage("§cSource GUI not found.");
-            return;
-        }
-        if (plugin.getGui(targetId) != null) {
-            sender.sendMessage("§cTarget ID already exists.");
-            return;
-        }
-
-        plugin.copyGui(sourceId, targetId);
-        sender.sendMessage("§aGUI copied from " + sourceId + " to " + targetId);
-
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-            plugin.setEditMode(player, targetId);
-            Inventory inv = plugin.getEditInventory(targetId);
-            if (inv != null) player.openInventory(inv);
-        }
-    }
-
-    private void handleEdit(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) return;
-        if (!sender.hasPermission("guimanager.edit")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        if (args.length < 2) {
-            sender.sendMessage("§cUsage: /gui edit <id>");
-            return;
-        }
-
-        String id = args[1];
-        GUI gui = plugin.getGui(id);
-        if (gui == null) {
-            sender.sendMessage("§cGUI not found.");
-            return;
-        }
-
         Player player = (Player) sender;
-        plugin.setEditMode(player, id);
 
-        Inventory inv = plugin.getEditInventory(id);
-        if (inv != null) {
-            player.openInventory(inv);
-            sender.sendMessage("§eEditing GUI: " + id);
+        // [CREATE] - 생성 (유연한 인수 처리 반영)
+        if (sub.equals("create")) {
+            if (!player.hasPermission("guimanager.create")) {
+                player.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            if (args.length < 2) {
+                player.sendMessage(ChatColor.RED + "Usage: /gui create <id> [rows] [title]");
+                return true;
+            }
+
+            String guiId = args[1];
+            if (plugin.getGui(guiId) != null) {
+                player.sendMessage(ChatColor.RED + "GUI already exists");
+                return true;
+            }
+
+            int rows = 1; // 기본값
+            String title = "§rDefault GUI"; // 기본값
+
+            // 인수가 3개 이상일 때 (rows 입력됨)
+            if (args.length >= 3) {
+                try {
+                    rows = Integer.parseInt(args[2]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "Rows must be a number. Defaulting to 1.");
+                    rows = 1;
+                }
+            }
+
+            // 인수가 4개 이상일 때 (title 입력됨)
+            if (args.length >= 4) {
+                StringBuilder titleBuilder = new StringBuilder();
+                for (int i = 3; i < args.length; i++) {
+                    titleBuilder.append(args[i]).append(" ");
+                }
+                title = ChatColor.translateAlternateColorCodes('&', titleBuilder.toString().trim());
+            }
+
+            if (rows < 1 || rows > 6) {
+                player.sendMessage(ChatColor.RED + "Rows must be between 1 and 6");
+                return true;
+            }
+
+            // 생성 및 저장
+            plugin.createGui(guiId, rows, title);
+            player.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' created successfully");
+
+            // 생성 후 즉시 편집기 열기
+            GUI createdGui = plugin.getGui(guiId);
+            if (createdGui != null) {
+                MainGuiEditor.open(player, createdGui);
+            }
+            return true;
         }
-    }
 
-    private void handleDelete(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("guimanager.delete")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
+        // [EDIT] - 편집
+        if (sub.equals("edit")) {
+            if (!player.hasPermission("guimanager.edit")) {
+                player.sendMessage(ChatColor.RED + "No permission");
+                return true;
+            }
+            if (args.length < 2) {
+                player.sendMessage(ChatColor.RED + "Usage: /gui edit <id>");
+                return true;
+            }
+            String guiId = args[1];
+            GUI gui = plugin.getGui(guiId);
+            if (gui == null) {
+                player.sendMessage(ChatColor.RED + "GUI not found");
+                return true;
+            }
+            MainGuiEditor.open(player, gui);
+            return true;
         }
-        if (args.length < 2) {
-            sender.sendMessage("§cUsage: /gui delete <id>");
-            return;
-        }
 
-        String id = args[1];
-        if (plugin.getGui(id) == null) {
-            sender.sendMessage("§cGUI not found.");
-            return;
-        }
-
-        plugin.removeGui(id);
-        sender.sendMessage("§aGUI '" + id + "' deleted.");
-    }
-
-    private void handleList(CommandSender sender) {
-        if (!sender.hasPermission("guimanager.list")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        Set<String> guis = plugin.getGuis().keySet();
-        sender.sendMessage("§6Registered GUIs: §f" + String.join(", ", guis));
-    }
-
-    private void handleReload(CommandSender sender) {
-        if (!sender.hasPermission("guimanager.reload")) {
-            sender.sendMessage(plugin.getLanguageManager().getMessage("no_permission"));
-            return;
-        }
-        plugin.loadGuis();
-        if (plugin.getLanguageManager() != null) plugin.getLanguageManager().reload();
-        sender.sendMessage("§aConfiguration and GUIs reloaded.");
-    }
-
-    private void sendHelp(CommandSender sender) {
-        sender.sendMessage("§8§m-------§r §6GUI Manager Help §8§m-------");
-        sender.sendMessage("§e/gui open <id> [player] §7- Open a GUI");
-        sender.sendMessage("§e/gui edit <id> §7- Edit a GUI");
-        sender.sendMessage("§e/gui create <id> <rows> <title> §7- Create a new GUI");
-        sender.sendMessage("§e/gui copy <source> <target> §7- Copy a GUI");
-        sender.sendMessage("§e/gui delete <id> §7- Delete a GUI");
-        sender.sendMessage("§e/gui list §7- List all GUIs");
-        sender.sendMessage("§e/gui reload §7- Reload configuration");
-        sender.sendMessage("§e/gui import <type> §7- Import from other plugins");
+        return false;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
-
         if (args.length == 1) {
-            String[] subs = {"open", "create", "copy", "edit", "delete", "list", "reload", "import"};
-            for (String s : subs) if (s.startsWith(args[0].toLowerCase())) completions.add(s);
+            completions.add("create"); completions.add("edit"); completions.add("open");
+            completions.add("list"); completions.add("reload"); completions.add("delete");
+            completions.add("copy"); completions.add("import");
         } else if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if (sub.equals("open") || sub.equals("edit") || sub.equals("delete") || sub.equals("copy")) {
-                for (String id : plugin.getGuis().keySet()) {
-                    if (id.toLowerCase().startsWith(args[1].toLowerCase())) completions.add(id);
-                }
+            if (sub.equals("edit") || sub.equals("open") || sub.equals("delete") || sub.equals("copy")) {
+                completions.addAll(plugin.getGuis().keySet());
             } else if (sub.equals("import")) {
-                if ("deluxemenus".startsWith(args[1].toLowerCase())) completions.add("deluxemenus");
-                if ("guiplus".startsWith(args[1].toLowerCase())) completions.add("guiplus");
+                completions.add("guiplus");
+                completions.add("deluxemenus");
             }
-        } else if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                if (p.getName().toLowerCase().startsWith(args[2].toLowerCase())) completions.add(p.getName());
-            }
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("create")) {
+            for (int i = 1; i <= 6; i++) completions.add(String.valueOf(i));
         }
-
-        Collections.sort(completions);
         return completions;
     }
 }

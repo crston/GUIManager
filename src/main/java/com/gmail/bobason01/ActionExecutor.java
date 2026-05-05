@@ -19,7 +19,7 @@ public class ActionExecutor {
     public void execute(Player player, String guiId, int slot, ItemStack item, ClickType clickType) {
         if (item == null || item.getType().isAir()) return;
 
-        String actionKey = getActionKey(clickType);
+        String actionKey = getActionKey(clickType, player.isSneaking());
         if (actionKey == null) return;
 
         GuiItemMeta.Variant variant = plugin.getMetaCache().getVariant(guiId, slot, actionKey);
@@ -28,7 +28,7 @@ public class ActionExecutor {
             return;
         }
 
-        String actionId = guiId + slot + clickType.name();
+        String actionId = guiId + slot + clickType.name() + (player.isSneaking() ? "SHIFT" : "");
 
         executeVariantLogic(player, variant, actionId);
     }
@@ -52,7 +52,6 @@ public class ActionExecutor {
     private void executeVariantLogic(Player player, GuiItemMeta.Variant variant, String actionId) {
         long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
         if (remainingCooldown > 0) {
-            // 스트링 포맷팅 객체 생성 방지를 위한 직접 계산 로직
             double sec = remainingCooldown / 1000.0;
             double rounded = Math.round(sec * 10.0) / 10.0;
             player.sendMessage(ChatColor.RED + "You must wait " + rounded + " more seconds");
@@ -68,13 +67,22 @@ public class ActionExecutor {
             return;
         }
 
+        if (variant.parsedItemRewards != null && variant.parsedItemRewards.length > 0) {
+            for (ItemStack reward : variant.parsedItemRewards) {
+                if (reward != null && !reward.getType().isAir()) {
+                    player.getInventory().addItem(reward.clone()).values().forEach(leftover -> {
+                        player.getWorld().dropItem(player.getLocation(), leftover);
+                    });
+                }
+            }
+        }
+
         if (variant.cooldownSeconds > 0) {
             plugin.setCooldown(player, actionId, variant.cooldownSeconds);
         }
 
         String command = variant.command;
 
-        // 인덱스 기반 탐색으로 성능 향상
         if (variant.requireTarget && command.indexOf("{target}") != -1) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, variant.executor));
             if (!variant.keepOpen) player.closeInventory();
@@ -85,7 +93,10 @@ public class ActionExecutor {
         }
     }
 
-    private String getActionKey(ClickType t) {
+    private String getActionKey(ClickType t, boolean isSneaking) {
+        if (t == ClickType.SWAP_OFFHAND) return isSneaking ? GuiItemMeta.SHIFT_F : GuiItemMeta.F;
+        if (t == ClickType.DROP) return GuiItemMeta.Q;
+        if (t == ClickType.CONTROL_DROP) return GuiItemMeta.SHIFT_Q;
         if (t.isShiftClick()) return t.isLeftClick() ? GuiItemMeta.SHIFT_LEFT : GuiItemMeta.SHIFT_RIGHT;
         if (t.isLeftClick()) return GuiItemMeta.LEFT;
         if (t.isRightClick()) return GuiItemMeta.RIGHT;

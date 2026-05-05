@@ -1,7 +1,6 @@
 package com.gmail.bobason01;
 
 import org.bukkit.NamespacedKey;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -32,77 +31,60 @@ public final class ActionKeyUtil {
     }
 
     public static List<NamespacedKey> getAllKeys() {
-        List<NamespacedKey> keys = new ArrayList<>(80);
+        List<NamespacedKey> keys = new ArrayList<>(90);
         keys.add(GUIManager.KEY_PERMISSION_MESSAGE);
         keys.add(GUIManager.KEY_REQUIRE_TARGET);
         keys.add(GUIManager.KEY_CUSTOM_MODEL_DATA);
-        keys.add(GUIManager.KEY_ITEM_DAMAGE);
         keys.add(GUIManager.KEY_ITEM_MODEL);
 
         keys.add(GUIManager.KEY_COMMAND_LEFT); keys.add(GUIManager.KEY_EXECUTOR_LEFT); keys.add(GUIManager.KEY_COOLDOWN_LEFT);
-        keys.add(GUIManager.KEY_MONEY_COST_LEFT); keys.add(GUIManager.KEY_COST_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_LEFT); keys.add(GUIManager.KEY_PERMISSION_LEFT);
+        keys.add(GUIManager.KEY_MONEY_COST_LEFT); keys.add(GUIManager.KEY_COST_LEFT); keys.add(GUIManager.KEY_REWARD_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_LEFT); keys.add(GUIManager.KEY_PERMISSION_LEFT);
 
         keys.add(GUIManager.KEY_COMMAND_SHIFT_LEFT); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_LEFT); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_LEFT);
-        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT); keys.add(GUIManager.KEY_PERMISSION_SHIFT_LEFT);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_COST_SHIFT_LEFT); keys.add(GUIManager.KEY_REWARD_SHIFT_LEFT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT); keys.add(GUIManager.KEY_PERMISSION_SHIFT_LEFT);
 
         keys.add(GUIManager.KEY_COMMAND_RIGHT); keys.add(GUIManager.KEY_EXECUTOR_RIGHT); keys.add(GUIManager.KEY_COOLDOWN_RIGHT);
-        keys.add(GUIManager.KEY_MONEY_COST_RIGHT); keys.add(GUIManager.KEY_COST_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_RIGHT); keys.add(GUIManager.KEY_PERMISSION_RIGHT);
+        keys.add(GUIManager.KEY_MONEY_COST_RIGHT); keys.add(GUIManager.KEY_COST_RIGHT); keys.add(GUIManager.KEY_REWARD_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_RIGHT); keys.add(GUIManager.KEY_PERMISSION_RIGHT);
 
         keys.add(GUIManager.KEY_COMMAND_SHIFT_RIGHT); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_RIGHT); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_RIGHT);
-        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT); keys.add(GUIManager.KEY_PERMISSION_SHIFT_RIGHT);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_COST_SHIFT_RIGHT); keys.add(GUIManager.KEY_REWARD_SHIFT_RIGHT); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT); keys.add(GUIManager.KEY_PERMISSION_SHIFT_RIGHT);
 
         keys.add(GUIManager.KEY_COMMAND_F); keys.add(GUIManager.KEY_EXECUTOR_F); keys.add(GUIManager.KEY_COOLDOWN_F);
-        keys.add(GUIManager.KEY_MONEY_COST_F); keys.add(GUIManager.KEY_COST_F); keys.add(GUIManager.KEY_PERMISSION_F); keys.add(GUIManager.KEY_KEEP_OPEN_F);
+        keys.add(GUIManager.KEY_MONEY_COST_F); keys.add(GUIManager.KEY_COST_F); keys.add(GUIManager.KEY_REWARD_F); keys.add(GUIManager.KEY_PERMISSION_F); keys.add(GUIManager.KEY_KEEP_OPEN_F);
 
         keys.add(GUIManager.KEY_COMMAND_SHIFT_F); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_F); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_F);
-        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_F); keys.add(GUIManager.KEY_COST_SHIFT_F); keys.add(GUIManager.KEY_PERMISSION_SHIFT_F); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_F);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_F); keys.add(GUIManager.KEY_COST_SHIFT_F); keys.add(GUIManager.KEY_REWARD_SHIFT_F); keys.add(GUIManager.KEY_PERMISSION_SHIFT_F); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_F);
 
         keys.add(GUIManager.KEY_COMMAND_Q); keys.add(GUIManager.KEY_EXECUTOR_Q); keys.add(GUIManager.KEY_COOLDOWN_Q);
-        keys.add(GUIManager.KEY_MONEY_COST_Q); keys.add(GUIManager.KEY_COST_Q); keys.add(GUIManager.KEY_PERMISSION_Q); keys.add(GUIManager.KEY_KEEP_OPEN_Q);
+        keys.add(GUIManager.KEY_MONEY_COST_Q); keys.add(GUIManager.KEY_COST_Q); keys.add(GUIManager.KEY_REWARD_Q); keys.add(GUIManager.KEY_PERMISSION_Q); keys.add(GUIManager.KEY_KEEP_OPEN_Q);
 
         keys.add(GUIManager.KEY_COMMAND_SHIFT_Q); keys.add(GUIManager.KEY_EXECUTOR_SHIFT_Q); keys.add(GUIManager.KEY_COOLDOWN_SHIFT_Q);
-        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_PERMISSION_SHIFT_Q); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_Q);
+        keys.add(GUIManager.KEY_MONEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_COST_SHIFT_Q); keys.add(GUIManager.KEY_REWARD_SHIFT_Q); keys.add(GUIManager.KEY_PERMISSION_SHIFT_Q); keys.add(GUIManager.KEY_KEEP_OPEN_SHIFT_Q);
 
         return keys;
     }
 
-    public static NamespacedKey getCommandKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_COMMAND_SHIFT_LEFT : GUIManager.KEY_COMMAND_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_COMMAND_LEFT : GUIManager.KEY_COMMAND_RIGHT;
+    public static NamespacedKey getRewardKeyFromCostType(EditSession.EditType type) {
+        if (type == null) return null;
+        switch (type) {
+            case COST_LEFT: return GUIManager.KEY_REWARD_LEFT;
+            case COST_SHIFT_LEFT: return GUIManager.KEY_REWARD_SHIFT_LEFT;
+            case COST_RIGHT: return GUIManager.KEY_REWARD_RIGHT;
+            case COST_SHIFT_RIGHT: return GUIManager.KEY_REWARD_SHIFT_RIGHT;
+            case COST_F: return GUIManager.KEY_REWARD_F;
+            case COST_SHIFT_F: return GUIManager.KEY_REWARD_SHIFT_F;
+            case COST_Q: return GUIManager.KEY_REWARD_Q;
+            case COST_SHIFT_Q: return GUIManager.KEY_REWARD_SHIFT_Q;
+            default: return null;
+        }
     }
 
-    public static NamespacedKey getCooldownKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_COOLDOWN_SHIFT_LEFT : GUIManager.KEY_COOLDOWN_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_COOLDOWN_LEFT : GUIManager.KEY_COOLDOWN_RIGHT;
-    }
-
-    public static NamespacedKey getExecutorKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_EXECUTOR_SHIFT_LEFT : GUIManager.KEY_EXECUTOR_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_EXECUTOR_LEFT : GUIManager.KEY_EXECUTOR_RIGHT;
-    }
-
-    public static NamespacedKey getKeepOpenKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT : GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_KEEP_OPEN_LEFT : GUIManager.KEY_KEEP_OPEN_RIGHT;
-    }
-
-    public static NamespacedKey getPermissionKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_PERMISSION_SHIFT_LEFT : GUIManager.KEY_PERMISSION_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_PERMISSION_LEFT : GUIManager.KEY_PERMISSION_RIGHT;
-    }
-
-    public static NamespacedKey getItemCostKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_COST_SHIFT_LEFT : GUIManager.KEY_COST_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_COST_LEFT : GUIManager.KEY_COST_RIGHT;
-    }
-
-    public static NamespacedKey getMoneyCostKey(ClickType t) {
-        if (t.isShiftClick()) return t.isLeftClick() ? GUIManager.KEY_MONEY_COST_SHIFT_LEFT : GUIManager.KEY_MONEY_COST_SHIFT_RIGHT;
-        return t.isLeftClick() ? GUIManager.KEY_MONEY_COST_LEFT : GUIManager.KEY_MONEY_COST_RIGHT;
-    }
-
-    public static NamespacedKey getCommandKey(KeyAction a) {
-        switch (a) {
+    /**
+     * KeybindListener에서 사용하는 KeyAction 대응 메서드
+     */
+    public static NamespacedKey getCommandKey(KeyAction action) {
+        if (action == null) return null;
+        switch (action) {
             case F: return GUIManager.KEY_COMMAND_F;
             case SHIFT_F: return GUIManager.KEY_COMMAND_SHIFT_F;
             case Q: return GUIManager.KEY_COMMAND_Q;
@@ -111,62 +93,32 @@ public final class ActionKeyUtil {
         }
     }
 
-    public static NamespacedKey getCooldownKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_COOLDOWN_F;
-            case SHIFT_F: return GUIManager.KEY_COOLDOWN_SHIFT_F;
-            case Q: return GUIManager.KEY_COOLDOWN_Q;
-            case SHIFT_Q: return GUIManager.KEY_COOLDOWN_SHIFT_Q;
+    public static NamespacedKey getCommandKey(EditSession.EditType type) {
+        if (type == null) return null;
+        switch (type) {
+            case COMMAND_LEFT: return GUIManager.KEY_COMMAND_LEFT;
+            case COMMAND_SHIFT_LEFT: return GUIManager.KEY_COMMAND_SHIFT_LEFT;
+            case COMMAND_RIGHT: return GUIManager.KEY_COMMAND_RIGHT;
+            case COMMAND_SHIFT_RIGHT: return GUIManager.KEY_COMMAND_SHIFT_RIGHT;
+            case COMMAND_F: return GUIManager.KEY_COMMAND_F;
+            case COMMAND_SHIFT_F: return GUIManager.KEY_COMMAND_SHIFT_F;
+            case COMMAND_Q: return GUIManager.KEY_COMMAND_Q;
+            case COMMAND_SHIFT_Q: return GUIManager.KEY_COMMAND_SHIFT_Q;
             default: return null;
         }
     }
 
-    public static NamespacedKey getExecutorKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_EXECUTOR_F;
-            case SHIFT_F: return GUIManager.KEY_EXECUTOR_SHIFT_F;
-            case Q: return GUIManager.KEY_EXECUTOR_Q;
-            case SHIFT_Q: return GUIManager.KEY_EXECUTOR_SHIFT_Q;
-            default: return null;
-        }
-    }
-
-    public static NamespacedKey getPermissionKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_PERMISSION_F;
-            case SHIFT_F: return GUIManager.KEY_PERMISSION_SHIFT_F;
-            case Q: return GUIManager.KEY_PERMISSION_Q;
-            case SHIFT_Q: return GUIManager.KEY_PERMISSION_SHIFT_Q;
-            default: return null;
-        }
-    }
-
-    public static NamespacedKey getItemCostKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_COST_F;
-            case SHIFT_F: return GUIManager.KEY_COST_SHIFT_F;
-            case Q: return GUIManager.KEY_COST_Q;
-            case SHIFT_Q: return GUIManager.KEY_COST_SHIFT_Q;
-            default: return null;
-        }
-    }
-
-    public static NamespacedKey getMoneyCostKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_MONEY_COST_F;
-            case SHIFT_F: return GUIManager.KEY_MONEY_COST_SHIFT_F;
-            case Q: return GUIManager.KEY_MONEY_COST_Q;
-            case SHIFT_Q: return GUIManager.KEY_MONEY_COST_SHIFT_Q;
-            default: return null;
-        }
-    }
-
-    public static NamespacedKey getKeepOpenKey(KeyAction a) {
-        switch (a) {
-            case F: return GUIManager.KEY_KEEP_OPEN_F;
-            case SHIFT_F: return GUIManager.KEY_KEEP_OPEN_SHIFT_F;
-            case Q: return GUIManager.KEY_KEEP_OPEN_Q;
-            case SHIFT_Q: return GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
+    public static NamespacedKey getCommandKey(String actionKey) {
+        if (actionKey == null) return null;
+        switch (actionKey) {
+            case GuiItemMeta.LEFT: return GUIManager.KEY_COMMAND_LEFT;
+            case GuiItemMeta.SHIFT_LEFT: return GUIManager.KEY_COMMAND_SHIFT_LEFT;
+            case GuiItemMeta.RIGHT: return GUIManager.KEY_COMMAND_RIGHT;
+            case GuiItemMeta.SHIFT_RIGHT: return GUIManager.KEY_COMMAND_SHIFT_RIGHT;
+            case GuiItemMeta.F: return GUIManager.KEY_COMMAND_F;
+            case GuiItemMeta.SHIFT_F: return GUIManager.KEY_COMMAND_SHIFT_F;
+            case GuiItemMeta.Q: return GUIManager.KEY_COMMAND_Q;
+            case GuiItemMeta.SHIFT_Q: return GUIManager.KEY_COMMAND_SHIFT_Q;
             default: return null;
         }
     }
@@ -211,6 +163,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_F: return GUIManager.KEY_MONEY_COST_F;
             case COOLDOWN_F: return GUIManager.KEY_COOLDOWN_F;
             case EXECUTOR_F: return GUIManager.KEY_EXECUTOR_F;
+            case KEEP_OPEN_F: return GUIManager.KEY_KEEP_OPEN_F;
             case PERMISSION_F: return GUIManager.KEY_PERMISSION_F;
 
             case COMMAND_SHIFT_F: return GUIManager.KEY_COMMAND_SHIFT_F;
@@ -218,6 +171,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_SHIFT_F: return GUIManager.KEY_MONEY_COST_SHIFT_F;
             case COOLDOWN_SHIFT_F: return GUIManager.KEY_COOLDOWN_SHIFT_F;
             case EXECUTOR_SHIFT_F: return GUIManager.KEY_EXECUTOR_SHIFT_F;
+            case KEEP_OPEN_SHIFT_F: return GUIManager.KEY_KEEP_OPEN_SHIFT_F;
             case PERMISSION_SHIFT_F: return GUIManager.KEY_PERMISSION_SHIFT_F;
 
             case COMMAND_Q: return GUIManager.KEY_COMMAND_Q;
@@ -225,6 +179,7 @@ public final class ActionKeyUtil {
             case MONEY_COST_Q: return GUIManager.KEY_MONEY_COST_Q;
             case COOLDOWN_Q: return GUIManager.KEY_COOLDOWN_Q;
             case EXECUTOR_Q: return GUIManager.KEY_EXECUTOR_Q;
+            case KEEP_OPEN_Q: return GUIManager.KEY_KEEP_OPEN_Q;
             case PERMISSION_Q: return GUIManager.KEY_PERMISSION_Q;
 
             case COMMAND_SHIFT_Q: return GUIManager.KEY_COMMAND_SHIFT_Q;
@@ -232,12 +187,12 @@ public final class ActionKeyUtil {
             case MONEY_COST_SHIFT_Q: return GUIManager.KEY_MONEY_COST_SHIFT_Q;
             case COOLDOWN_SHIFT_Q: return GUIManager.KEY_COOLDOWN_SHIFT_Q;
             case EXECUTOR_SHIFT_Q: return GUIManager.KEY_EXECUTOR_SHIFT_Q;
+            case KEEP_OPEN_SHIFT_Q: return GUIManager.KEY_KEEP_OPEN_SHIFT_Q;
             case PERMISSION_SHIFT_Q: return GUIManager.KEY_PERMISSION_SHIFT_Q;
 
             case REQUIRE_TARGET: return GUIManager.KEY_REQUIRE_TARGET;
             case PERMISSION_MESSAGE: return GUIManager.KEY_PERMISSION_MESSAGE;
             case CUSTOM_MODEL_DATA: return GUIManager.KEY_CUSTOM_MODEL_DATA;
-            case ITEM_DAMAGE: return GUIManager.KEY_ITEM_DAMAGE;
             case ITEM_MODEL_ID: return GUIManager.KEY_ITEM_MODEL;
 
             default: return null;

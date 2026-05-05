@@ -37,6 +37,8 @@ public final class GuiItemMeta {
         public String permission;
         public String itemCostBase64;
         public ItemStack[] parsedItemCosts;
+        public String itemRewardBase64;
+        public ItemStack[] parsedItemRewards;
         public double moneyCost;
         public double cooldownSeconds;
         public GUIManager.ExecutorType executor;

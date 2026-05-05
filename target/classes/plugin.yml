@@ -1,56 +1,58 @@
 name: GUIManager
-version: 60.0
+version: 70.0
 main: com.gmail.bobason01.GUIManager
 api-version: 1.13
 author: crston
-softdepend: [Vault]
+description: Extreme performance oriented GUI Management Plugin
+softdepend: [Vault, PlaceholderAPI]
+
 commands:
   gui:
-    description: Manages GUIs.
+    description: Main command for GUI Manager
     usage: /gui <subcommand>
-    aliases: [guim]
+    permission: guimanager.use
+
 permissions:
-  guimanager.*:
-    description: Grants all permissions for GUIManager
+  guimanager.use:
+    description: Basic permission to use gui command
+    default: op
+  guimanager.admin:
+    description: Full access to all gui features
     default: op
     children:
       guimanager.open: true
       guimanager.open.others: true
       guimanager.create: true
       guimanager.edit: true
+      guimanager.copy: true
       guimanager.delete: true
       guimanager.list: true
       guimanager.reload: true
       guimanager.import: true
-
   guimanager.open:
-    description: Allows opening a GUI
+    description: Allow opening guis
     default: op
-
   guimanager.open.others:
-    description: Allows opening a GUI for other players
+    description: Allow opening guis for other players
     default: op
-
   guimanager.create:
-    description: Allows creating a new GUI
+    description: Allow creating new guis
     default: op
-
   guimanager.edit:
-    description: Allows editing an existing GUI
+    description: Allow editing existing guis
     default: op
-
+  guimanager.copy:
+    description: Allow copying guis
+    default: op
   guimanager.delete:
-    description: Allows deleting a GUI
+    description: Allow deleting guis
     default: op
-
   guimanager.list:
-    description: Allows listing all GUIs
+    description: Allow listing all guis
     default: op
-
   guimanager.reload:
-    description: Allows reloading the plugin configuration
+    description: Allow reloading the plugin
     default: op
-
   guimanager.import:
-    description: Allows importing menus from other plugins (GUIPlus, DeluxeMenus)
+    description: Allow importing from other plugins
     default: op

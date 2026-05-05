@@ -35,7 +35,6 @@ public class HeadUtils {
     }
 
     public static ItemStack createHeadByName(String name) {
-        // 플레이어 이름 기반 캐싱 시도
         if (HeadCache.has(name)) return HeadCache.getHead(name);
 
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
@@ -50,7 +49,6 @@ public class HeadUtils {
     }
 
     public static ItemStack createHeadByBase64(String base64) {
-        // Base64 기반 캐싱 확인
         if (HeadCache.has(base64)) return HeadCache.getHead(base64);
 
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
@@ -59,16 +57,17 @@ public class HeadUtils {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta == null) return head;
 
+        String finalBase64 = base64;
         if (base64.indexOf("http") == 0) {
             String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + base64 + "\"}}}";
-            base64 = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+            finalBase64 = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
         }
 
         try {
             PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
             PlayerTextures textures = profile.getTextures();
 
-            String decoded = new String(Base64.getDecoder().decode(base64));
+            String decoded = new String(Base64.getDecoder().decode(finalBase64));
             String url = extractUrlFromDecodedJson(decoded);
             if (url != null) {
                 textures.setSkin(new URL(url));
@@ -79,7 +78,6 @@ public class HeadUtils {
         }
 
         head.setItemMeta(meta);
-        // 생성된 머리 캐싱
         HeadCache.cacheHead(base64, head);
         return head;
     }

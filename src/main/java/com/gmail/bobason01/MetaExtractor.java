@@ -20,39 +20,39 @@ public final class MetaExtractor {
         meta.setMaterialSnapshot(item.getType());
 
         fill(pdc, meta, GuiItemMeta.LEFT,
-                GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COST_LEFT,
+                GUIManager.KEY_COMMAND_LEFT, GUIManager.KEY_PERMISSION_LEFT, GUIManager.KEY_COST_LEFT, GUIManager.KEY_REWARD_LEFT,
                 GUIManager.KEY_MONEY_COST_LEFT, GUIManager.KEY_COOLDOWN_LEFT, GUIManager.KEY_EXECUTOR_LEFT,
                 GUIManager.KEY_KEEP_OPEN_LEFT);
 
         fill(pdc, meta, GuiItemMeta.SHIFT_LEFT,
-                GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COST_SHIFT_LEFT,
+                GUIManager.KEY_COMMAND_SHIFT_LEFT, GUIManager.KEY_PERMISSION_SHIFT_LEFT, GUIManager.KEY_COST_SHIFT_LEFT, GUIManager.KEY_REWARD_SHIFT_LEFT,
                 GUIManager.KEY_MONEY_COST_SHIFT_LEFT, GUIManager.KEY_COOLDOWN_SHIFT_LEFT, GUIManager.KEY_EXECUTOR_SHIFT_LEFT,
                 GUIManager.KEY_KEEP_OPEN_SHIFT_LEFT);
 
         fill(pdc, meta, GuiItemMeta.RIGHT,
-                GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COST_RIGHT,
+                GUIManager.KEY_COMMAND_RIGHT, GUIManager.KEY_PERMISSION_RIGHT, GUIManager.KEY_COST_RIGHT, GUIManager.KEY_REWARD_RIGHT,
                 GUIManager.KEY_MONEY_COST_RIGHT, GUIManager.KEY_COOLDOWN_RIGHT, GUIManager.KEY_EXECUTOR_RIGHT,
                 GUIManager.KEY_KEEP_OPEN_RIGHT);
 
         fill(pdc, meta, GuiItemMeta.SHIFT_RIGHT,
-                GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT, GUIManager.KEY_COST_SHIFT_RIGHT,
+                GUIManager.KEY_COMMAND_SHIFT_RIGHT, GUIManager.KEY_PERMISSION_SHIFT_RIGHT, GUIManager.KEY_COST_SHIFT_RIGHT, GUIManager.KEY_REWARD_SHIFT_RIGHT,
                 GUIManager.KEY_MONEY_COST_SHIFT_RIGHT, GUIManager.KEY_COOLDOWN_SHIFT_RIGHT, GUIManager.KEY_EXECUTOR_SHIFT_RIGHT,
                 GUIManager.KEY_KEEP_OPEN_SHIFT_RIGHT);
 
         fill(pdc, meta, GuiItemMeta.F,
-                GUIManager.KEY_COMMAND_F, GUIManager.KEY_PERMISSION_F, GUIManager.KEY_COST_F,
+                GUIManager.KEY_COMMAND_F, GUIManager.KEY_PERMISSION_F, GUIManager.KEY_COST_F, GUIManager.KEY_REWARD_F,
                 GUIManager.KEY_MONEY_COST_F, GUIManager.KEY_COOLDOWN_F, GUIManager.KEY_EXECUTOR_F, null);
 
         fill(pdc, meta, GuiItemMeta.SHIFT_F,
-                GUIManager.KEY_COMMAND_SHIFT_F, GUIManager.KEY_PERMISSION_SHIFT_F, GUIManager.KEY_COST_SHIFT_F,
+                GUIManager.KEY_COMMAND_SHIFT_F, GUIManager.KEY_PERMISSION_SHIFT_F, GUIManager.KEY_COST_SHIFT_F, GUIManager.KEY_REWARD_SHIFT_F,
                 GUIManager.KEY_MONEY_COST_SHIFT_F, GUIManager.KEY_COOLDOWN_SHIFT_F, GUIManager.KEY_EXECUTOR_SHIFT_F, null);
 
         fill(pdc, meta, GuiItemMeta.Q,
-                GUIManager.KEY_COMMAND_Q, GUIManager.KEY_PERMISSION_Q, GUIManager.KEY_COST_Q,
+                GUIManager.KEY_COMMAND_Q, GUIManager.KEY_PERMISSION_Q, GUIManager.KEY_COST_Q, GUIManager.KEY_REWARD_Q,
                 GUIManager.KEY_MONEY_COST_Q, GUIManager.KEY_COOLDOWN_Q, GUIManager.KEY_EXECUTOR_Q, null);
 
         fill(pdc, meta, GuiItemMeta.SHIFT_Q,
-                GUIManager.KEY_COMMAND_SHIFT_Q, GUIManager.KEY_PERMISSION_SHIFT_Q, GUIManager.KEY_COST_SHIFT_Q,
+                GUIManager.KEY_COMMAND_SHIFT_Q, GUIManager.KEY_PERMISSION_SHIFT_Q, GUIManager.KEY_COST_SHIFT_Q, GUIManager.KEY_REWARD_SHIFT_Q,
                 GUIManager.KEY_MONEY_COST_SHIFT_Q, GUIManager.KEY_COOLDOWN_SHIFT_Q, GUIManager.KEY_EXECUTOR_SHIFT_Q, null);
 
         if (getLegacyOrInt(pdc, GUIManager.KEY_REQUIRE_TARGET) == 1) {
@@ -67,7 +67,7 @@ public final class MetaExtractor {
     private static void fill(PersistentDataContainer pdc,
                              GuiItemMeta meta,
                              String key,
-                             NamespacedKey cmd, NamespacedKey perm, NamespacedKey itemCost,
+                             NamespacedKey cmd, NamespacedKey perm, NamespacedKey itemCost, NamespacedKey itemReward,
                              NamespacedKey moneyCost, NamespacedKey cooldown, NamespacedKey exec,
                              NamespacedKey keepOpen) {
         GuiItemMeta.Variant v = meta.getOrCreate(key);
@@ -76,18 +76,19 @@ public final class MetaExtractor {
         v.moneyCost = pdc.getOrDefault(moneyCost, PersistentDataType.DOUBLE, 0.0);
         v.cooldownSeconds = pdc.getOrDefault(cooldown, PersistentDataType.DOUBLE, 0.0);
 
-        String base64 = pdc.get(itemCost, PersistentDataType.STRING);
-        v.itemCostBase64 = base64;
+        String costBase64 = pdc.get(itemCost, PersistentDataType.STRING);
+        v.itemCostBase64 = costBase64;
+        if (costBase64 != null && !costBase64.isEmpty()) {
+            try { v.parsedItemCosts = ItemSerialization.itemStackArrayFromBase64(costBase64); }
+            catch (Exception e) { v.parsedItemCosts = new ItemStack[0]; }
+        } else { v.parsedItemCosts = new ItemStack[0]; }
 
-        if (base64 != null && !base64.isEmpty()) {
-            try {
-                v.parsedItemCosts = ItemSerialization.itemStackArrayFromBase64(base64);
-            } catch (Exception e) {
-                v.parsedItemCosts = new ItemStack[0];
-            }
-        } else {
-            v.parsedItemCosts = new ItemStack[0];
-        }
+        String rewardBase64 = pdc.get(itemReward, PersistentDataType.STRING);
+        v.itemRewardBase64 = rewardBase64;
+        if (rewardBase64 != null && !rewardBase64.isEmpty()) {
+            try { v.parsedItemRewards = ItemSerialization.itemStackArrayFromBase64(rewardBase64); }
+            catch (Exception e) { v.parsedItemRewards = new ItemStack[0]; }
+        } else { v.parsedItemRewards = new ItemStack[0]; }
 
         String ex = pdc.get(exec, PersistentDataType.STRING);
         v.executor = ex != null ? safeExec(ex) : GUIManager.ExecutorType.PLAYER;
