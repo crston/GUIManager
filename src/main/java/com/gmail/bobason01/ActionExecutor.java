@@ -29,7 +29,6 @@ public class ActionExecutor {
         }
 
         String actionId = guiId + slot + clickType.name() + (player.isSneaking() ? "SHIFT" : "");
-
         executeVariantLogic(player, variant, actionId);
     }
 
@@ -45,7 +44,6 @@ public class ActionExecutor {
         }
 
         String actionId = player.getName() + actionKey + variant.command.hashCode();
-
         executeVariantLogic(player, variant, actionId);
     }
 
@@ -83,10 +81,10 @@ public class ActionExecutor {
 
         String command = variant.command;
 
-        if (variant.requireTarget && command.indexOf("{target}") != -1) {
+        if (variant.requireTarget && command.contains("{target}")) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, variant.executor));
             if (!variant.keepOpen) player.closeInventory();
-            player.sendMessage(ChatColor.GREEN + "Please enter the target player name in chat Type cancel to abort");
+            player.sendMessage(ChatColor.GREEN + "Please enter the target player name in chat. Type 'cancel' to abort.");
         } else {
             if (!variant.keepOpen) player.closeInventory();
             executeCommand(player, command, variant.executor, null);
@@ -104,29 +102,30 @@ public class ActionExecutor {
     }
 
     public void executeCommand(Player player, String command, GUIManager.ExecutorType executor, String targetName) {
-        String finalCommand = command.replace("%player%", player.getName());
-        if (targetName != null) finalCommand = finalCommand.replace("{target}", targetName);
-
-        String commandToExecute = finalCommand;
-
+        String[] commands = command.split(";;");
         Bukkit.getScheduler().runTask(plugin, () -> {
-            switch (executor) {
-                case CONSOLE:
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), commandToExecute);
-                    break;
-                case OP:
-                    boolean wasOp = player.isOp();
-                    try {
-                        player.setOp(true);
-                        player.performCommand(commandToExecute);
-                    } finally {
-                        if (!wasOp) player.setOp(false);
-                    }
-                    break;
-                case PLAYER:
-                default:
-                    player.performCommand(commandToExecute);
-                    break;
+            for (String singleCmd : commands) {
+                String finalCommand = singleCmd.replace("%player%", player.getName());
+                if (targetName != null) finalCommand = finalCommand.replace("{target}", targetName);
+
+                switch (executor) {
+                    case CONSOLE:
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
+                        break;
+                    case OP:
+                        boolean wasOp = player.isOp();
+                        try {
+                            player.setOp(true);
+                            player.performCommand(finalCommand);
+                        } finally {
+                            if (!wasOp) player.setOp(false);
+                        }
+                        break;
+                    case PLAYER:
+                    default:
+                        player.performCommand(finalCommand);
+                        break;
+                }
             }
         });
     }

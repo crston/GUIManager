@@ -78,15 +78,12 @@ public final class GUIManager extends JavaPlugin {
         HeadCache.clear();
     }
 
-    // 인벤토리 생성 시 에러 방지 로직이 포함된 메서드
     public Inventory getEditInventory(String guiId) {
         GUI gui = getGui(guiId);
         if (gui == null) return null;
         GUIHolder holder = new GUIHolder(guiId);
         Inventory inv = Bukkit.createInventory(holder, gui.getSize(), gui.getTitle());
         holder.setInventory(inv);
-
-        // 중요: 현재 인벤토리 크기보다 큰 위치의 아이템은 건너뜁니다 (에러 방지 및 데이터 유지)
         gui.getItems().forEach((slot, item) -> {
             if (slot < inv.getSize()) {
                 inv.setItem(slot, item);
@@ -102,8 +99,6 @@ public final class GUIManager extends JavaPlugin {
         GUIHolder holder = new GUIHolder(guiId);
         Inventory inv = Bukkit.createInventory(holder, gui.getSize(), title);
         holder.setInventory(inv);
-
-        // 중요: 현재 인벤토리 크기보다 큰 위치의 아이템은 건너뜁니다
         gui.getItems().forEach((slot, item) -> {
             if (slot < inv.getSize()) {
                 inv.setItem(slot, applyPlaceholders(item.clone(), player));
@@ -198,6 +193,7 @@ public final class GUIManager extends JavaPlugin {
 
     public void loadGuis() {
         guis.clear();
+        metaCache.clearAll();
         File[] files = guisFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (files == null) return;
         for (File file : files) {

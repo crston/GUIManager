@@ -24,7 +24,10 @@ public class GUI {
     public void setTitle(String title) { this.title = title; }
 
     public int getSize() { return size; }
-    public void setSize(int size) { this.size = size; }
+    public void setSize(int size) {
+        this.size = size;
+        items.keySet().removeIf(slot -> slot >= size);
+    }
 
     public String getPermission() { return permission; }
     public void setPermission(String permission) { this.permission = permission; }
@@ -33,5 +36,12 @@ public class GUI {
     public void setTargets(String targets) { this.targets = targets; }
 
     public Map<Integer, ItemStack> getItems() { return items; }
-    public void setItem(int slot, ItemStack item) { items.put(slot, item); }
+
+    public void setItem(int slot, ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            items.remove(slot);
+        } else {
+            items.put(slot, item);
+        }
+    }
 }
