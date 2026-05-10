@@ -3,6 +3,7 @@ package com.gmail.bobason01;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class GUIManager extends JavaPlugin {
 
@@ -34,6 +37,7 @@ public final class GUIManager extends JavaPlugin {
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
+    // NamespacedKey 선언 (생략 없음)
     public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_MODEL;
     public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_REWARD_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
     public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_REWARD_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
@@ -78,47 +82,49 @@ public final class GUIManager extends JavaPlugin {
         HeadCache.clear();
     }
 
-    public Inventory getEditInventory(String guiId) {
-        GUI gui = getGui(guiId);
-        if (gui == null) return null;
-        GUIHolder holder = new GUIHolder(guiId);
-        Inventory inv = Bukkit.createInventory(holder, gui.getSize(), gui.getTitle());
-        holder.setInventory(inv);
-        gui.getItems().forEach((slot, item) -> {
-            if (slot < inv.getSize()) {
-                inv.setItem(slot, item);
-            }
-        });
-        return inv;
+    /**
+     * Java 9+ Matcher API를 사용한 HEX 컬러 변환 (기울임 방지)
+     */
+    public static String color(String msg) {
+        if (msg == null || msg.isEmpty()) return msg;
+        Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})");
+        Matcher matcher = hexPattern.matcher(msg);
+        StringBuilder buffer = new StringBuilder(msg.length() + 16);
+        while (matcher.find()) {
+            String colorCode = matcher.group(1);
+            StringBuilder replacement = new StringBuilder("§x");
+            for (char c : colorCode.toCharArray()) replacement.append('§').append(c);
+            matcher.appendReplacement(buffer, replacement.toString());
+        }
+        matcher.appendTail(buffer);
+        return ChatColor.translateAlternateColorCodes('&', buffer.toString());
     }
 
-    public Inventory getPlayerSpecificInventory(Player player, String guiId) {
-        GUI gui = getGui(guiId);
-        if (gui == null) return null;
-        String title = placeholderApiEnabled ? PlaceholderAPI.setPlaceholders(player, gui.getTitle()) : gui.getTitle();
-        GUIHolder holder = new GUIHolder(guiId);
-        Inventory inv = Bukkit.createInventory(holder, gui.getSize(), title);
-        holder.setInventory(inv);
-        gui.getItems().forEach((slot, item) -> {
-            if (slot < inv.getSize()) {
-                inv.setItem(slot, applyPlaceholders(item.clone(), player));
-            }
-        });
-        return inv;
-    }
+    public ItemStack applyPlaceholders(ItemStack item, Player player) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemMeta meta = item.getItemMeta();
 
-    public void saveGuisSync() { guis.keySet().forEach(this::saveGui); }
-    public void saveGuis() { saveGuisSync(); }
-    public void addGui(String id, GUI gui) { guis.put(id.toLowerCase(), gui); metaCache.buildForGui(id, gui, this); }
-    public GUI getGui(String id) { return guis.get(id.toLowerCase()); }
-    public void removeGui(String id) {
-        guis.remove(id.toLowerCase());
-        File file = new File(guisFolder, id.toLowerCase() + ".yml");
-        if (file.exists()) file.delete();
+        // 이름 처리
+        if (meta.hasDisplayName()) {
+            String name = meta.getDisplayName();
+            if (placeholderApiEnabled) name = PlaceholderAPI.setPlaceholders(player, name);
+            meta.setDisplayName(color(name) + "§r");
+        }
+
+        // 로어 처리 (각 줄마다 기울임 해제 강제 적용)
+        if (meta.hasLore()) {
+            List<String> updatedLore = new ArrayList<>();
+            for (String line : meta.getLore()) {
+                String translated = line;
+                if (placeholderApiEnabled) translated = PlaceholderAPI.setPlaceholders(player, translated);
+                updatedLore.add("§r" + color(translated) + "§r");
+            }
+            meta.setLore(updatedLore);
+        }
+
+        item.setItemMeta(meta);
+        return item;
     }
-    public Map<String, GUI> getGuis() { return guis; }
-    public GuiMetaCache getMetaCache() { return metaCache; }
-    public static GUIManager getInstance() { return instance; }
 
     public void initializeKeys() {
         KEY_PERMISSION_MESSAGE = new NamespacedKey(this, "perm_msg");
@@ -226,57 +232,28 @@ public final class GUIManager extends JavaPlugin {
         try { config.save(file); } catch (IOException ignored) {}
     }
 
-    public void createGui(String id, int rows, String title) {
-        GUI gui = new GUI(title, rows * 9);
-        gui.setId(id);
-        addGui(id, gui);
-        saveGui(id);
+    public Inventory getEditInventory(String guiId) {
+        GUI gui = getGui(guiId);
+        if (gui == null) return null;
+        GUIHolder holder = new GUIHolder(guiId);
+        Inventory inv = Bukkit.createInventory(holder, gui.getSize(), color(gui.getTitle()));
+        holder.setInventory(inv);
+        gui.getItems().forEach((slot, item) -> { if (slot < inv.getSize()) inv.setItem(slot, item); });
+        return inv;
     }
 
-    public ItemStack applyPlaceholders(ItemStack item, Player player) {
-        if (!placeholderApiEnabled || item == null || !item.hasItemMeta()) return item;
-        ItemMeta meta = item.getItemMeta();
-        if (meta.hasDisplayName()) meta.setDisplayName(PlaceholderAPI.setPlaceholders(player, meta.getDisplayName()));
-        if (meta.hasLore()) {
-            List<String> lore = new ArrayList<>();
-            for (String s : meta.getLore()) lore.add(PlaceholderAPI.setPlaceholders(player, s));
-            meta.setLore(lore);
-        }
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    public void setCooldown(Player p, String actionId, double seconds) {
-        if (seconds <= 0) return;
-        long expiryTime = System.currentTimeMillis() + (long) (seconds * 1000);
-        playerCooldowns.computeIfAbsent(p.getUniqueId(), k -> new CooldownMap()).put(actionId, expiryTime);
-    }
-
-    public long getRemainingCooldownMillis(Player p, String actionId) {
-        CooldownMap map = playerCooldowns.get(p.getUniqueId());
-        return (map == null) ? 0 : map.remainingMillis(actionId);
-    }
-
-    public boolean isInEditMode(Player p) { return playersInEditMode.containsKey(p.getUniqueId()); }
-    public void setEditMode(Player p, String guiId) { playersInEditMode.put(p.getUniqueId(), guiId); }
-    public String getEditingGuiName(Player p) { return playersInEditMode.get(p.getUniqueId()); }
-    public void removeEditMode(Player p) { playersInEditMode.remove(p.getUniqueId()); }
-    public boolean hasChatSession(Player p) { return chatEditSessions.containsKey(p.getUniqueId()); }
-    public EditSession getChatSession(Player p) { return chatEditSessions.get(p.getUniqueId()); }
-    public void startChatSession(Player p, EditSession s) { chatEditSessions.put(p.getUniqueId(), s); }
-    public void endChatSession(Player p) { chatEditSessions.remove(p.getUniqueId()); }
-    public boolean isAwaitingTarget(Player p) { return playersAwaitingTarget.containsKey(p.getUniqueId()); }
-    public TargetInfo getAwaitingTargetInfo(Player p) { return playersAwaitingTarget.get(p.getUniqueId()); }
-    public void setAwaitingTarget(Player p, TargetInfo info) { playersAwaitingTarget.put(p.getUniqueId(), info); }
-    public void removeAwaitingTarget(Player p) { playersAwaitingTarget.remove(p.getUniqueId()); }
-    public void cleanupPlayer(UUID id) {
-        playersInEditMode.remove(id); chatEditSessions.remove(id);
-        playersAwaitingTarget.remove(id); playerCooldowns.remove(id);
-    }
-
-    private void setupEconomy() {
-        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp != null) econ = rsp.getProvider();
+    public Inventory getPlayerSpecificInventory(Player player, String guiId) {
+        GUI gui = getGui(guiId);
+        if (gui == null) return null;
+        String title = gui.getTitle();
+        if (placeholderApiEnabled) title = PlaceholderAPI.setPlaceholders(player, title);
+        GUIHolder holder = new GUIHolder(guiId);
+        Inventory inv = Bukkit.createInventory(holder, gui.getSize(), color(title));
+        holder.setInventory(inv);
+        gui.getItems().forEach((slot, item) -> {
+            if (slot < inv.getSize()) inv.setItem(slot, applyPlaceholders(item.clone(), player));
+        });
+        return inv;
     }
 
     private void startGuiUpdateTask() {
@@ -298,4 +275,30 @@ public final class GUIManager extends JavaPlugin {
             }
         }, 20L, 20L);
     }
+
+    public void saveGuisSync() { guis.keySet().forEach(this::saveGui); }
+    public void saveGuis() { saveGuisSync(); }
+    public void addGui(String id, GUI gui) { guis.put(id.toLowerCase(), gui); metaCache.buildForGui(id, gui, this); }
+    public GUI getGui(String id) { return guis.get(id.toLowerCase()); }
+    public void removeGui(String id) { guis.remove(id.toLowerCase()); File file = new File(guisFolder, id.toLowerCase() + ".yml"); if (file.exists()) file.delete(); }
+    public void createGui(String id, int rows, String title) { GUI gui = new GUI(title, rows * 9); gui.setId(id); addGui(id, gui); saveGui(id); }
+    public void setCooldown(Player p, String actionId, double seconds) { if (seconds <= 0) return; long expiryTime = System.currentTimeMillis() + (long) (seconds * 1000); playerCooldowns.computeIfAbsent(p.getUniqueId(), k -> new CooldownMap()).put(actionId, expiryTime); }
+    public long getRemainingCooldownMillis(Player p, String actionId) { CooldownMap map = playerCooldowns.get(p.getUniqueId()); return (map == null) ? 0 : map.remainingMillis(actionId); }
+    public boolean isInEditMode(Player p) { return playersInEditMode.containsKey(p.getUniqueId()); }
+    public void setEditMode(Player p, String guiId) { playersInEditMode.put(p.getUniqueId(), guiId); }
+    public String getEditingGuiName(Player p) { return playersInEditMode.get(p.getUniqueId()); }
+    public void removeEditMode(Player p) { playersInEditMode.remove(p.getUniqueId()); }
+    public boolean hasChatSession(Player p) { return chatEditSessions.containsKey(p.getUniqueId()); }
+    public EditSession getChatSession(Player p) { return chatEditSessions.get(p.getUniqueId()); }
+    public void startChatSession(Player p, EditSession s) { chatEditSessions.put(p.getUniqueId(), s); }
+    public void endChatSession(Player p) { chatEditSessions.remove(p.getUniqueId()); }
+    public boolean isAwaitingTarget(Player p) { return playersAwaitingTarget.containsKey(p.getUniqueId()); }
+    public TargetInfo getAwaitingTargetInfo(Player p) { return playersAwaitingTarget.get(p.getUniqueId()); }
+    public void setAwaitingTarget(Player p, TargetInfo info) { playersAwaitingTarget.put(p.getUniqueId(), info); }
+    public void removeAwaitingTarget(Player p) { playersAwaitingTarget.remove(p.getUniqueId()); }
+    public void cleanupPlayer(UUID id) { playersInEditMode.remove(id); chatEditSessions.remove(id); playersAwaitingTarget.remove(id); playerCooldowns.remove(id); }
+    public GuiMetaCache getMetaCache() { return metaCache; }
+    public static GUIManager getInstance() { return instance; }
+    private void setupEconomy() { RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class); if (rsp != null) econ = rsp.getProvider(); }
+    public Map<String, GUI> getGuis() { return guis; }
 }
