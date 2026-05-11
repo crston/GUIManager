@@ -1,9 +1,11 @@
 package com.gmail.bobason01;
+
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import java.util.List;
+
 public class ItemCostRewardHolder implements InventoryHolder {
     private Inventory inventory;
     private final EditSession session;

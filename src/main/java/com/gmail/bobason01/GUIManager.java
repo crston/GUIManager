@@ -1,5 +1,8 @@
 package com.gmail.bobason01;
 
+import com.gmail.bobason01.listener.ChatListener;
+import com.gmail.bobason01.listener.GUIListener;
+import com.gmail.bobason01.utils.HeadCache;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -34,10 +37,10 @@ public final class GUIManager extends JavaPlugin {
     private BukkitTask autoSaveTask;
     private BukkitTask guiUpdateTask;
     private final GuiMetaCache metaCache = new GuiMetaCache();
+    private LanguageManager languageManager;
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    // NamespacedKey 선언 (생략 없음)
     public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_MODEL;
     public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_REWARD_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
     public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_REWARD_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
@@ -59,6 +62,7 @@ public final class GUIManager extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        this.languageManager = new LanguageManager(this);
         setupEconomy();
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) placeholderApiEnabled = true;
         initializeKeys();
@@ -82,9 +86,10 @@ public final class GUIManager extends JavaPlugin {
         HeadCache.clear();
     }
 
-    /**
-     * Java 9+ Matcher API를 사용한 HEX 컬러 변환 (기울임 방지)
-     */
+    public LanguageManager getLanguageManager() {
+        return languageManager;
+    }
+
     public static String color(String msg) {
         if (msg == null || msg.isEmpty()) return msg;
         Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})");
@@ -104,14 +109,12 @@ public final class GUIManager extends JavaPlugin {
         if (item == null || !item.hasItemMeta()) return item;
         ItemMeta meta = item.getItemMeta();
 
-        // 이름 처리
         if (meta.hasDisplayName()) {
             String name = meta.getDisplayName();
             if (placeholderApiEnabled) name = PlaceholderAPI.setPlaceholders(player, name);
             meta.setDisplayName(color(name) + "§r");
         }
 
-        // 로어 처리 (각 줄마다 기울임 해제 강제 적용)
         if (meta.hasLore()) {
             List<String> updatedLore = new ArrayList<>();
             for (String line : meta.getLore()) {

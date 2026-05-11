@@ -1,4 +1,5 @@
 package com.gmail.bobason01;
+
 public class TargetInfo {
     private final String command;
     private final GUIManager.ExecutorType executor;

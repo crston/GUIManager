@@ -1,5 +1,7 @@
 package com.gmail.bobason01;
 
+import com.gmail.bobason01.importer.DeluxeMenusImporter;
+import com.gmail.bobason01.importer.GUIPlusImporter;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;

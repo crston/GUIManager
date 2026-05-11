@@ -1,6 +1,8 @@
 package com.gmail.bobason01;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 public class CooldownMap {
     private final Map<String, Long> cooldowns = new ConcurrentHashMap<>();
     public void put(String actionId, long expiryTime) { cooldowns.put(actionId, expiryTime); }

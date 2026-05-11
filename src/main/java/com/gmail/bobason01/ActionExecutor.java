@@ -1,7 +1,10 @@
 package com.gmail.bobason01;
 
+import com.gmail.bobason01.event.GUIActionExecuteEvent;
+import com.gmail.bobason01.listener.GUIListener;
+import com.gmail.bobason01.utils.ActionKeyUtil;
+import com.gmail.bobason01.utils.MetaExtractor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
@@ -29,7 +32,7 @@ public class ActionExecutor {
         }
 
         String actionId = guiId + slot + clickType.name() + (player.isSneaking() ? "SHIFT" : "");
-        executeVariantLogic(player, variant, actionId);
+        executeVariantLogic(player, guiId, slot, item, variant, actionId);
     }
 
     public void execute(Player player, ItemStack item, ActionKeyUtil.KeyAction keyAction) {
@@ -44,20 +47,24 @@ public class ActionExecutor {
         }
 
         String actionId = player.getName() + actionKey + variant.command.hashCode();
-        executeVariantLogic(player, variant, actionId);
+        executeVariantLogic(player, "N/A", -1, item, variant, actionId);
     }
 
-    private void executeVariantLogic(Player player, GuiItemMeta.Variant variant, String actionId) {
+    private void executeVariantLogic(Player player, String guiId, int slot, ItemStack item, GuiItemMeta.Variant variant, String actionId) {
+        GUIActionExecuteEvent event = new GUIActionExecuteEvent(player, guiId, slot, item, actionId);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) return;
+
         long remainingCooldown = plugin.getRemainingCooldownMillis(player, actionId);
         if (remainingCooldown > 0) {
             double sec = remainingCooldown / 1000.0;
             double rounded = Math.round(sec * 10.0) / 10.0;
-            player.sendMessage(ChatColor.RED + "You must wait " + rounded + " more seconds");
+            player.sendMessage(plugin.getLanguageManager().getMessage("error.cooldown", "{time}", String.valueOf(rounded)));
             return;
         }
 
         if (variant.permission != null && !variant.permission.isEmpty() && !player.hasPermission(variant.permission)) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&cYou don't have permission"));
+            player.sendMessage(plugin.getLanguageManager().getMessage("error.no_permission"));
             return;
         }
 
@@ -84,7 +91,7 @@ public class ActionExecutor {
         if (variant.requireTarget && command.contains("{target}")) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, variant.executor));
             if (!variant.keepOpen) player.closeInventory();
-            player.sendMessage(ChatColor.GREEN + "Please enter the target player name in chat. Type 'cancel' to abort.");
+            player.sendMessage(plugin.getLanguageManager().getMessage("info.input_target"));
         } else {
             if (!variant.keepOpen) player.closeInventory();
             executeCommand(player, command, variant.executor, null);

@@ -1,5 +1,6 @@
 package com.gmail.bobason01;
 
+import com.gmail.bobason01.utils.MetaExtractor;
 import org.bukkit.inventory.ItemStack;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -1,6 +1,8 @@
 package com.gmail.bobason01;
+
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+
 public class GUIHolder implements InventoryHolder {
     private Inventory inventory;
     private final String guiId;

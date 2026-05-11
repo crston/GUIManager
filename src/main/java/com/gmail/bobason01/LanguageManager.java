@@ -30,6 +30,7 @@ public class LanguageManager {
     public void load() {
         if (!configFile.exists()) {
             plugin.saveResource(fileName, false);
+            setupDefaultMessages();
         }
         config = YamlConfiguration.loadConfiguration(configFile);
         InputStream defConfigStream = plugin.getResource(fileName);
@@ -50,9 +51,25 @@ public class LanguageManager {
         }
     }
 
+    private void setupDefaultMessages() {
+        config = YamlConfiguration.loadConfiguration(configFile);
+        config.set("error.cooldown", "&cYou must wait {time} more seconds");
+        config.set("error.no_permission", "&cYou don't have permission");
+        config.set("error.no_economy", "&cEconomy is not enabled on this server");
+        config.set("error.not_enough_money", "&cYou don't have enough money");
+        config.set("error.not_enough_items", "&cYou don't have the required items");
+        config.set("info.input_target", "&aPlease enter the target player name in chat Type cancel to abort");
+        config.set("info.cancel_action", "&cAction cancelled");
+        config.set("command.no_permission", "&cNo permission");
+        config.set("command.gui_not_found", "&cGUI not found");
+        config.set("command.player_not_found", "&cPlayer not found");
+        config.set("command.reload_success", "&aPlugin reloaded and GUIs saved");
+        save();
+    }
+
     private void save() {
         try { config.save(configFile); }
-        catch (IOException e) { plugin.getLogger().log(Level.SEVERE, "Could not save file", e); }
+        catch (IOException e) { plugin.getLogger().log(Level.SEVERE, "Could not save language file", e); }
     }
 
     public String getMessage(String key) {

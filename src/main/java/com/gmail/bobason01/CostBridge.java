@@ -1,6 +1,6 @@
 package com.gmail.bobason01;
 
-import org.bukkit.ChatColor;
+import com.gmail.bobason01.listener.GUIListener;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -10,18 +10,18 @@ public class CostBridge {
     public static boolean checkAndTake(Player player, GUIManager plugin, double moneyCost, ItemStack[] itemCosts) {
         if (moneyCost > 0) {
             if (GUIManager.econ == null) {
-                player.sendMessage(ChatColor.RED + "Economy is not enabled on this server");
+                player.sendMessage(plugin.getLanguageManager().getMessage("error.no_economy"));
                 return false;
             }
             if (!GUIManager.econ.has(player, moneyCost)) {
-                player.sendMessage(ChatColor.RED + "You don't have enough money");
+                player.sendMessage(plugin.getLanguageManager().getMessage("error.not_enough_money"));
                 return false;
             }
         }
 
         if (itemCosts != null && itemCosts.length > 0) {
             if (!hasItems(player.getInventory(), itemCosts)) {
-                player.sendMessage(ChatColor.RED + "You don't have the required items");
+                player.sendMessage(plugin.getLanguageManager().getMessage("error.not_enough_items"));
                 return false;
             }
         }
