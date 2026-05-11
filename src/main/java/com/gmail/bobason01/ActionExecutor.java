@@ -51,6 +51,7 @@ public class ActionExecutor {
     }
 
     private void executeVariantLogic(Player player, String guiId, int slot, ItemStack item, GuiItemMeta.Variant variant, String actionId) {
+        LanguageManager lang = plugin.getLanguageManager();
         GUIActionExecuteEvent event = new GUIActionExecuteEvent(player, guiId, slot, item, actionId);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return;
@@ -59,12 +60,17 @@ public class ActionExecutor {
         if (remainingCooldown > 0) {
             double sec = remainingCooldown / 1000.0;
             double rounded = Math.round(sec * 10.0) / 10.0;
-            player.sendMessage(plugin.getLanguageManager().getMessage("error.cooldown", "{time}", String.valueOf(rounded)));
+            String cdMessage = lang.getRawMessage("error.cooldown");
+            if (cdMessage.equals("error.cooldown")) {
+                player.sendMessage(lang.getMessage("error") + " Cooldown: " + rounded + "s");
+            } else {
+                player.sendMessage(lang.getMessage("error.cooldown", "{time}", String.valueOf(rounded)));
+            }
             return;
         }
 
         if (variant.permission != null && !variant.permission.isEmpty() && !player.hasPermission(variant.permission)) {
-            player.sendMessage(plugin.getLanguageManager().getMessage("error.no_permission"));
+            player.sendMessage(lang.getMessage("no_permission"));
             return;
         }
 
@@ -91,7 +97,7 @@ public class ActionExecutor {
         if (variant.requireTarget && command.contains("{target}")) {
             plugin.setAwaitingTarget(player, new TargetInfo(command, variant.executor));
             if (!variant.keepOpen) player.closeInventory();
-            player.sendMessage(plugin.getLanguageManager().getMessage("info.input_target"));
+            player.sendMessage(lang.getMessage("editor.prompt.general"));
         } else {
             if (!variant.keepOpen) player.closeInventory();
             executeCommand(player, command, variant.executor, null);

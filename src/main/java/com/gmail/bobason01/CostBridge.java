@@ -8,20 +8,22 @@ import org.bukkit.inventory.ItemStack;
 public class CostBridge {
 
     public static boolean checkAndTake(Player player, GUIManager plugin, double moneyCost, ItemStack[] itemCosts) {
+        LanguageManager lang = plugin.getLanguageManager();
+
         if (moneyCost > 0) {
             if (GUIManager.econ == null) {
-                player.sendMessage(plugin.getLanguageManager().getMessage("error.no_economy"));
+                player.sendMessage(lang.getMessage("editor.require_vault"));
                 return false;
             }
             if (!GUIManager.econ.has(player, moneyCost)) {
-                player.sendMessage(plugin.getLanguageManager().getMessage("error.not_enough_money"));
+                player.sendMessage(lang.getMessage("check.no_money"));
                 return false;
             }
         }
 
         if (itemCosts != null && itemCosts.length > 0) {
             if (!hasItems(player.getInventory(), itemCosts)) {
-                player.sendMessage(plugin.getLanguageManager().getMessage("error.not_enough_items"));
+                player.sendMessage(lang.getMessage("check.no_item"));
                 return false;
             }
         }

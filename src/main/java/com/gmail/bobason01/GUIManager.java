@@ -1,5 +1,6 @@
 package com.gmail.bobason01;
 
+import com.gmail.bobason01.event.GUIOpenEvent;
 import com.gmail.bobason01.listener.ChatListener;
 import com.gmail.bobason01.listener.GUIListener;
 import com.gmail.bobason01.utils.HeadCache;
@@ -41,15 +42,74 @@ public final class GUIManager extends JavaPlugin {
 
     public enum ExecutorType { PLAYER, CONSOLE, OP }
 
-    public static NamespacedKey KEY_PERMISSION_MESSAGE, KEY_REQUIRE_TARGET, KEY_CUSTOM_MODEL_DATA, KEY_ITEM_MODEL;
-    public static NamespacedKey KEY_COMMAND_LEFT, KEY_PERMISSION_LEFT, KEY_COST_LEFT, KEY_REWARD_LEFT, KEY_MONEY_COST_LEFT, KEY_COOLDOWN_LEFT, KEY_EXECUTOR_LEFT, KEY_KEEP_OPEN_LEFT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT, KEY_PERMISSION_SHIFT_LEFT, KEY_COST_SHIFT_LEFT, KEY_REWARD_SHIFT_LEFT, KEY_MONEY_COST_SHIFT_LEFT, KEY_COOLDOWN_SHIFT_LEFT, KEY_EXECUTOR_SHIFT_LEFT, KEY_KEEP_OPEN_SHIFT_LEFT;
-    public static NamespacedKey KEY_COMMAND_RIGHT, KEY_PERMISSION_RIGHT, KEY_COST_RIGHT, KEY_REWARD_RIGHT, KEY_MONEY_COST_RIGHT, KEY_COOLDOWN_RIGHT, KEY_EXECUTOR_RIGHT, KEY_KEEP_OPEN_RIGHT;
-    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT, KEY_PERMISSION_SHIFT_RIGHT, KEY_COST_SHIFT_RIGHT, KEY_REWARD_SHIFT_RIGHT, KEY_MONEY_COST_SHIFT_RIGHT, KEY_COOLDOWN_SHIFT_RIGHT, KEY_EXECUTOR_SHIFT_RIGHT, KEY_KEEP_OPEN_SHIFT_RIGHT;
-    public static NamespacedKey KEY_COMMAND_F, KEY_PERMISSION_F, KEY_COST_F, KEY_REWARD_F, KEY_MONEY_COST_F, KEY_COOLDOWN_F, KEY_EXECUTOR_F, KEY_KEEP_OPEN_F;
-    public static NamespacedKey KEY_COMMAND_SHIFT_F, KEY_PERMISSION_SHIFT_F, KEY_COST_SHIFT_F, KEY_REWARD_SHIFT_F, KEY_MONEY_COST_SHIFT_F, KEY_COOLDOWN_SHIFT_F, KEY_EXECUTOR_SHIFT_F, KEY_KEEP_OPEN_SHIFT_F;
-    public static NamespacedKey KEY_COMMAND_Q, KEY_PERMISSION_Q, KEY_COST_Q, KEY_REWARD_Q, KEY_MONEY_COST_Q, KEY_COOLDOWN_Q, KEY_EXECUTOR_Q, KEY_KEEP_OPEN_Q;
-    public static NamespacedKey KEY_COMMAND_SHIFT_Q, KEY_PERMISSION_SHIFT_Q, KEY_COST_SHIFT_Q, KEY_REWARD_SHIFT_Q, KEY_MONEY_COST_SHIFT_Q, KEY_COOLDOWN_SHIFT_Q, KEY_EXECUTOR_SHIFT_Q, KEY_KEEP_OPEN_SHIFT_Q;
+    public static NamespacedKey KEY_PERMISSION_MESSAGE;
+    public static NamespacedKey KEY_REQUIRE_TARGET;
+    public static NamespacedKey KEY_CUSTOM_MODEL_DATA;
+    public static NamespacedKey KEY_ITEM_MODEL;
+    public static NamespacedKey KEY_COMMAND_LEFT;
+    public static NamespacedKey KEY_PERMISSION_LEFT;
+    public static NamespacedKey KEY_COST_LEFT;
+    public static NamespacedKey KEY_REWARD_LEFT;
+    public static NamespacedKey KEY_MONEY_COST_LEFT;
+    public static NamespacedKey KEY_COOLDOWN_LEFT;
+    public static NamespacedKey KEY_EXECUTOR_LEFT;
+    public static NamespacedKey KEY_KEEP_OPEN_LEFT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_LEFT;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_LEFT;
+    public static NamespacedKey KEY_COST_SHIFT_LEFT;
+    public static NamespacedKey KEY_REWARD_SHIFT_LEFT;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_LEFT;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_LEFT;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_LEFT;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_LEFT;
+    public static NamespacedKey KEY_COMMAND_RIGHT;
+    public static NamespacedKey KEY_PERMISSION_RIGHT;
+    public static NamespacedKey KEY_COST_RIGHT;
+    public static NamespacedKey KEY_REWARD_RIGHT;
+    public static NamespacedKey KEY_MONEY_COST_RIGHT;
+    public static NamespacedKey KEY_COOLDOWN_RIGHT;
+    public static NamespacedKey KEY_EXECUTOR_RIGHT;
+    public static NamespacedKey KEY_KEEP_OPEN_RIGHT;
+    public static NamespacedKey KEY_COMMAND_SHIFT_RIGHT;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COST_SHIFT_RIGHT;
+    public static NamespacedKey KEY_REWARD_SHIFT_RIGHT;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_RIGHT;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_RIGHT;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_RIGHT;
+    public static NamespacedKey KEY_COMMAND_F;
+    public static NamespacedKey KEY_PERMISSION_F;
+    public static NamespacedKey KEY_COST_F;
+    public static NamespacedKey KEY_REWARD_F;
+    public static NamespacedKey KEY_MONEY_COST_F;
+    public static NamespacedKey KEY_COOLDOWN_F;
+    public static NamespacedKey KEY_EXECUTOR_F;
+    public static NamespacedKey KEY_KEEP_OPEN_F;
+    public static NamespacedKey KEY_COMMAND_SHIFT_F;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_F;
+    public static NamespacedKey KEY_COST_SHIFT_F;
+    public static NamespacedKey KEY_REWARD_SHIFT_F;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_F;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_F;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_F;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_F;
+    public static NamespacedKey KEY_COMMAND_Q;
+    public static NamespacedKey KEY_PERMISSION_Q;
+    public static NamespacedKey KEY_COST_Q;
+    public static NamespacedKey KEY_REWARD_Q;
+    public static NamespacedKey KEY_MONEY_COST_Q;
+    public static NamespacedKey KEY_COOLDOWN_Q;
+    public static NamespacedKey KEY_EXECUTOR_Q;
+    public static NamespacedKey KEY_KEEP_OPEN_Q;
+    public static NamespacedKey KEY_COMMAND_SHIFT_Q;
+    public static NamespacedKey KEY_PERMISSION_SHIFT_Q;
+    public static NamespacedKey KEY_COST_SHIFT_Q;
+    public static NamespacedKey KEY_REWARD_SHIFT_Q;
+    public static NamespacedKey KEY_MONEY_COST_SHIFT_Q;
+    public static NamespacedKey KEY_COOLDOWN_SHIFT_Q;
+    public static NamespacedKey KEY_EXECUTOR_SHIFT_Q;
+    public static NamespacedKey KEY_KEEP_OPEN_SHIFT_Q;
 
     private final Map<String, GUI> guis = new ConcurrentHashMap<>();
     private File guisFolder;
@@ -64,10 +124,14 @@ public final class GUIManager extends JavaPlugin {
         instance = this;
         this.languageManager = new LanguageManager(this);
         setupEconomy();
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) placeholderApiEnabled = true;
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            placeholderApiEnabled = true;
+        }
         initializeKeys();
         guisFolder = new File(getDataFolder(), "guis");
-        if (!guisFolder.exists()) guisFolder.mkdirs();
+        if (!guisFolder.exists()) {
+            guisFolder.mkdirs();
+        }
         loadGuis();
         GUIListener guiListener = new GUIListener(this);
         Bukkit.getPluginManager().registerEvents(guiListener, this);
@@ -76,7 +140,9 @@ public final class GUIManager extends JavaPlugin {
         getCommand("gui").setExecutor(cmd);
         getCommand("gui").setTabCompleter(cmd);
         autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, this::saveGuis, 6000L, 6000L);
-        if (placeholderApiEnabled) startGuiUpdateTask();
+        if (placeholderApiEnabled) {
+            startGuiUpdateTask();
+        }
     }
 
     @Override
@@ -98,7 +164,9 @@ public final class GUIManager extends JavaPlugin {
         while (matcher.find()) {
             String colorCode = matcher.group(1);
             StringBuilder replacement = new StringBuilder("§x");
-            for (char c : colorCode.toCharArray()) replacement.append('§').append(c);
+            for (char c : colorCode.toCharArray()) {
+                replacement.append('§').append(c);
+            }
             matcher.appendReplacement(buffer, replacement.toString());
         }
         matcher.appendTail(buffer);
@@ -111,7 +179,9 @@ public final class GUIManager extends JavaPlugin {
 
         if (meta.hasDisplayName()) {
             String name = meta.getDisplayName();
-            if (placeholderApiEnabled) name = PlaceholderAPI.setPlaceholders(player, name);
+            if (placeholderApiEnabled) {
+                name = PlaceholderAPI.setPlaceholders(player, name);
+            }
             meta.setDisplayName(color(name) + "§r");
         }
 
@@ -119,7 +189,9 @@ public final class GUIManager extends JavaPlugin {
             List<String> updatedLore = new ArrayList<>();
             for (String line : meta.getLore()) {
                 String translated = line;
-                if (placeholderApiEnabled) translated = PlaceholderAPI.setPlaceholders(player, translated);
+                if (placeholderApiEnabled) {
+                    translated = PlaceholderAPI.setPlaceholders(player, translated);
+                }
                 updatedLore.add("§r" + color(translated) + "§r");
             }
             meta.setLore(updatedLore);
@@ -232,7 +304,10 @@ public final class GUIManager extends JavaPlugin {
         config.set("permission", gui.getPermission());
         config.set("targets", gui.getTargets());
         gui.getItems().forEach((slot, item) -> config.set("items." + slot, item));
-        try { config.save(file); } catch (IOException ignored) {}
+        try {
+            config.save(file);
+        } catch (IOException ignored) {
+        }
     }
 
     public Inventory getEditInventory(String guiId) {
@@ -241,7 +316,11 @@ public final class GUIManager extends JavaPlugin {
         GUIHolder holder = new GUIHolder(guiId);
         Inventory inv = Bukkit.createInventory(holder, gui.getSize(), color(gui.getTitle()));
         holder.setInventory(inv);
-        gui.getItems().forEach((slot, item) -> { if (slot < inv.getSize()) inv.setItem(slot, item); });
+        gui.getItems().forEach((slot, item) -> {
+            if (slot < inv.getSize()) {
+                inv.setItem(slot, item);
+            }
+        });
         return inv;
     }
 
@@ -249,12 +328,16 @@ public final class GUIManager extends JavaPlugin {
         GUI gui = getGui(guiId);
         if (gui == null) return null;
         String title = gui.getTitle();
-        if (placeholderApiEnabled) title = PlaceholderAPI.setPlaceholders(player, title);
+        if (placeholderApiEnabled) {
+            title = PlaceholderAPI.setPlaceholders(player, title);
+        }
         GUIHolder holder = new GUIHolder(guiId);
         Inventory inv = Bukkit.createInventory(holder, gui.getSize(), color(title));
         holder.setInventory(inv);
         gui.getItems().forEach((slot, item) -> {
-            if (slot < inv.getSize()) inv.setItem(slot, applyPlaceholders(item.clone(), player));
+            if (slot < inv.getSize()) {
+                inv.setItem(slot, applyPlaceholders(item.clone(), player));
+            }
         });
         return inv;
     }
@@ -270,7 +353,9 @@ public final class GUIManager extends JavaPlugin {
                             if (slot < inv.getSize()) {
                                 ItemStack updated = applyPlaceholders(item.clone(), player);
                                 ItemStack current = inv.getItem(slot);
-                                if (current == null || !current.equals(updated)) inv.setItem(slot, updated);
+                                if (current == null || !current.equals(updated)) {
+                                    inv.setItem(slot, updated);
+                                }
                             }
                         });
                     }
@@ -279,29 +364,134 @@ public final class GUIManager extends JavaPlugin {
         }, 20L, 20L);
     }
 
-    public void saveGuisSync() { guis.keySet().forEach(this::saveGui); }
-    public void saveGuis() { saveGuisSync(); }
-    public void addGui(String id, GUI gui) { guis.put(id.toLowerCase(), gui); metaCache.buildForGui(id, gui, this); }
-    public GUI getGui(String id) { return guis.get(id.toLowerCase()); }
-    public void removeGui(String id) { guis.remove(id.toLowerCase()); File file = new File(guisFolder, id.toLowerCase() + ".yml"); if (file.exists()) file.delete(); }
-    public void createGui(String id, int rows, String title) { GUI gui = new GUI(title, rows * 9); gui.setId(id); addGui(id, gui); saveGui(id); }
-    public void setCooldown(Player p, String actionId, double seconds) { if (seconds <= 0) return; long expiryTime = System.currentTimeMillis() + (long) (seconds * 1000); playerCooldowns.computeIfAbsent(p.getUniqueId(), k -> new CooldownMap()).put(actionId, expiryTime); }
-    public long getRemainingCooldownMillis(Player p, String actionId) { CooldownMap map = playerCooldowns.get(p.getUniqueId()); return (map == null) ? 0 : map.remainingMillis(actionId); }
-    public boolean isInEditMode(Player p) { return playersInEditMode.containsKey(p.getUniqueId()); }
-    public void setEditMode(Player p, String guiId) { playersInEditMode.put(p.getUniqueId(), guiId); }
-    public String getEditingGuiName(Player p) { return playersInEditMode.get(p.getUniqueId()); }
-    public void removeEditMode(Player p) { playersInEditMode.remove(p.getUniqueId()); }
-    public boolean hasChatSession(Player p) { return chatEditSessions.containsKey(p.getUniqueId()); }
-    public EditSession getChatSession(Player p) { return chatEditSessions.get(p.getUniqueId()); }
-    public void startChatSession(Player p, EditSession s) { chatEditSessions.put(p.getUniqueId(), s); }
-    public void endChatSession(Player p) { chatEditSessions.remove(p.getUniqueId()); }
-    public boolean isAwaitingTarget(Player p) { return playersAwaitingTarget.containsKey(p.getUniqueId()); }
-    public TargetInfo getAwaitingTargetInfo(Player p) { return playersAwaitingTarget.get(p.getUniqueId()); }
-    public void setAwaitingTarget(Player p, TargetInfo info) { playersAwaitingTarget.put(p.getUniqueId(), info); }
-    public void removeAwaitingTarget(Player p) { playersAwaitingTarget.remove(p.getUniqueId()); }
-    public void cleanupPlayer(UUID id) { playersInEditMode.remove(id); chatEditSessions.remove(id); playersAwaitingTarget.remove(id); playerCooldowns.remove(id); }
-    public GuiMetaCache getMetaCache() { return metaCache; }
-    public static GUIManager getInstance() { return instance; }
-    private void setupEconomy() { RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class); if (rsp != null) econ = rsp.getProvider(); }
-    public Map<String, GUI> getGuis() { return guis; }
+    public void openGui(Player player, String guiId) {
+        if (player == null || guiId == null) return;
+
+        GUIOpenEvent event = new GUIOpenEvent(player, guiId);
+        Bukkit.getPluginManager().callEvent(event);
+
+        if (event.isCancelled()) return;
+
+        Inventory inv = getPlayerSpecificInventory(player, guiId);
+        if (inv != null) {
+            player.openInventory(inv);
+        }
+    }
+
+    public void saveGuisSync() {
+        guis.keySet().forEach(this::saveGui);
+    }
+
+    public void saveGuis() {
+        saveGuisSync();
+    }
+
+    public void addGui(String id, GUI gui) {
+        guis.put(id.toLowerCase(), gui);
+        metaCache.buildForGui(id, gui, this);
+    }
+
+    public GUI getGui(String id) {
+        return guis.get(id.toLowerCase());
+    }
+
+    public void removeGui(String id) {
+        guis.remove(id.toLowerCase());
+        File file = new File(guisFolder, id.toLowerCase() + ".yml");
+        if (file.exists()) {
+            file.delete();
+        }
+    }
+
+    public void createGui(String id, int rows, String title) {
+        GUI gui = new GUI(title, rows * 9);
+        gui.setId(id);
+        addGui(id, gui);
+        saveGui(id);
+    }
+
+    public void setCooldown(Player p, String actionId, double seconds) {
+        if (seconds <= 0) return;
+        long expiryTime = System.currentTimeMillis() + (long) (seconds * 1000);
+        playerCooldowns.computeIfAbsent(p.getUniqueId(), k -> new CooldownMap()).put(actionId, expiryTime);
+    }
+
+    public long getRemainingCooldownMillis(Player p, String actionId) {
+        CooldownMap map = playerCooldowns.get(p.getUniqueId());
+        return (map == null) ? 0 : map.remainingMillis(actionId);
+    }
+
+    public boolean isInEditMode(Player p) {
+        return playersInEditMode.containsKey(p.getUniqueId());
+    }
+
+    public void setEditMode(Player p, String guiId) {
+        playersInEditMode.put(p.getUniqueId(), guiId);
+    }
+
+    public String getEditingGuiName(Player p) {
+        return playersInEditMode.get(p.getUniqueId());
+    }
+
+    public void removeEditMode(Player p) {
+        playersInEditMode.remove(p.getUniqueId());
+    }
+
+    public boolean hasChatSession(Player p) {
+        return chatEditSessions.containsKey(p.getUniqueId());
+    }
+
+    public EditSession getChatSession(Player p) {
+        return chatEditSessions.get(p.getUniqueId());
+    }
+
+    public void startChatSession(Player p, EditSession s) {
+        chatEditSessions.put(p.getUniqueId(), s);
+    }
+
+    public void endChatSession(Player p) {
+        chatEditSessions.remove(p.getUniqueId());
+    }
+
+    public boolean isAwaitingTarget(Player p) {
+        return playersAwaitingTarget.containsKey(p.getUniqueId());
+    }
+
+    public TargetInfo getAwaitingTargetInfo(Player p) {
+        return playersAwaitingTarget.get(p.getUniqueId());
+    }
+
+    public void setAwaitingTarget(Player p, TargetInfo info) {
+        playersAwaitingTarget.put(p.getUniqueId(), info);
+    }
+
+    public void removeAwaitingTarget(Player p) {
+        playersAwaitingTarget.remove(p.getUniqueId());
+    }
+
+    public void cleanupPlayer(UUID id) {
+        playersInEditMode.remove(id);
+        chatEditSessions.remove(id);
+        playersAwaitingTarget.remove(id);
+        playerCooldowns.remove(id);
+    }
+
+    public GuiMetaCache getMetaCache() {
+        return metaCache;
+    }
+
+    public static GUIManager getInstance() {
+        return instance;
+    }
+
+    private void setupEconomy() {
+        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
+        if (rsp != null) {
+            econ = rsp.getProvider();
+        }
+    }
+
+    public Map<String, GUI> getGuis() {
+        return guis;
+    }
 }

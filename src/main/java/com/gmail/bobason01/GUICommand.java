@@ -3,7 +3,6 @@ package com.gmail.bobason01;
 import com.gmail.bobason01.importer.DeluxeMenusImporter;
 import com.gmail.bobason01.importer.GUIPlusImporter;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -24,61 +23,64 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        LanguageManager lang = plugin.getLanguageManager();
+
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Usage: /gui <create|edit|open|list|reload|delete|copy|import>");
+            sender.sendMessage(lang.getMessage("command.unknown_command"));
             return true;
         }
 
         String sub = args[0].toLowerCase();
 
-        // [OPEN] - GUI 열기
         if (sub.equals("open")) {
             if (!sender.hasPermission("guimanager.open")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 2) {
-                sender.sendMessage(ChatColor.RED + "Usage: /gui open <gui id> [player]");
+                sender.sendMessage(lang.getMessage("command.open.usage"));
                 return true;
             }
             String guiId = args[1];
             GUI gui = plugin.getGui(guiId);
             if (gui == null) {
-                sender.sendMessage(ChatColor.RED + "GUI not found");
+                sender.sendMessage(lang.getMessage("gui_not_exist", "{id}", guiId));
                 return true;
             }
 
             Player targetPlayer;
             if (args.length >= 3) {
                 if (!sender.hasPermission("guimanager.open.others")) {
-                    sender.sendMessage(ChatColor.RED + "No permission to open for others");
+                    sender.sendMessage(lang.getMessage("no_permission"));
                     return true;
                 }
                 targetPlayer = Bukkit.getPlayer(args[2]);
                 if (targetPlayer == null) {
-                    sender.sendMessage(ChatColor.RED + "Player not found");
+                    sender.sendMessage(lang.getMessage("player_not_found", "{player}", args[2]));
                     return true;
                 }
             } else {
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(ChatColor.RED + "Console must specify a player");
+                    sender.sendMessage(lang.getMessage("player_only"));
                     return true;
                 }
                 targetPlayer = (Player) sender;
             }
 
-            targetPlayer.openInventory(plugin.getPlayerSpecificInventory(targetPlayer, guiId));
+            plugin.openGui(targetPlayer, guiId);
+            if (sender != targetPlayer) {
+                sender.sendMessage(lang.getMessage("command.open.success_other", "{id}", guiId, "{player}", targetPlayer.getName()));
+            }
             return true;
         }
 
-        // [IMPORT] - 다른 플러그인에서 가져오기
         if (sub.equals("import")) {
             if (!sender.hasPermission("guimanager.import")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 2) {
-                sender.sendMessage(ChatColor.RED + "Usage: /gui import <guiplus|deluxemenus> [filename]");
+                sender.sendMessage(lang.getMessage("command.import.usage"));
                 return true;
             }
             String type = args[1].toLowerCase();
@@ -86,79 +88,83 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 new GUIPlusImporter(plugin).importFromGUIPlus(sender);
             } else if (type.equals("deluxemenus")) {
                 if (args.length < 3) {
-                    sender.sendMessage(ChatColor.RED + "Usage: /gui import deluxemenus <filename.yml>");
+                    sender.sendMessage(lang.getMessage("command.import.usage"));
                     return true;
                 }
                 File file = new File("plugins/DeluxeMenus/gui_menus", args[2]);
                 new DeluxeMenusImporter(plugin).importFromDeluxeMenus((Player) sender, file);
+            } else {
+                sender.sendMessage(lang.getMessage("command.import.unsupported", "{plugin}", type));
             }
             return true;
         }
 
-        // [LIST] - 목록 확인
         if (sub.equals("list")) {
             if (!sender.hasPermission("guimanager.list")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
-            sender.sendMessage(ChatColor.GREEN + "Available GUIs:");
-            for (String id : plugin.getGuis().keySet()) {
-                sender.sendMessage(ChatColor.YELLOW + "- " + id);
+            if (plugin.getGuis().isEmpty()) {
+                sender.sendMessage(lang.getMessage("command.list.no_guis"));
+                return true;
             }
+            StringBuilder list = new StringBuilder(lang.getMessage("command.list.header"));
+            for (String id : plugin.getGuis().keySet()) {
+                list.append(id).append(" ");
+            }
+            sender.sendMessage(list.toString());
             return true;
         }
 
-        // [RELOAD] - 리로드
         if (sub.equals("reload")) {
             if (!sender.hasPermission("guimanager.reload")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             plugin.saveGuis();
             plugin.loadGuis();
-            sender.sendMessage(ChatColor.GREEN + "Plugin reloaded and GUIs saved");
+            plugin.getLanguageManager().reload();
+            sender.sendMessage(lang.getMessage("command.reload.success"));
             return true;
         }
 
-        // [DELETE] - 삭제
         if (sub.equals("delete")) {
             if (!sender.hasPermission("guimanager.delete")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 2) {
-                sender.sendMessage(ChatColor.RED + "Usage: /gui delete <gui id>");
+                sender.sendMessage(lang.getMessage("command.delete.usage"));
                 return true;
             }
             String guiId = args[1];
             if (plugin.getGui(guiId) == null) {
-                sender.sendMessage(ChatColor.RED + "GUI not found");
+                sender.sendMessage(lang.getMessage("command.delete.gui_not_found", "{id}", guiId));
                 return true;
             }
             plugin.removeGui(guiId);
-            sender.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' has been deleted");
+            sender.sendMessage(lang.getMessage("command.delete.success", "{id}", guiId));
             return true;
         }
 
-        // [COPY] - 복사
         if (sub.equals("copy")) {
             if (!sender.hasPermission("guimanager.copy")) {
-                sender.sendMessage(ChatColor.RED + "No permission");
+                sender.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 3) {
-                sender.sendMessage(ChatColor.RED + "Usage: /gui copy <source id> <new id>");
+                sender.sendMessage(lang.getMessage("command.copy.usage"));
                 return true;
             }
             String sourceId = args[1];
             String newId = args[2];
             GUI sourceGui = plugin.getGui(sourceId);
             if (sourceGui == null) {
-                sender.sendMessage(ChatColor.RED + "Source GUI not found");
+                sender.sendMessage(lang.getMessage("command.copy.original_not_exist", "{id}", sourceId));
                 return true;
             }
             if (plugin.getGui(newId) != null) {
-                sender.sendMessage(ChatColor.RED + "Target ID already exists");
+                sender.sendMessage(lang.getMessage("gui_already_exist", "{id}", newId));
                 return true;
             }
 
@@ -170,66 +176,60 @@ public class GUICommand implements CommandExecutor, TabCompleter {
 
             plugin.addGui(newId, newGui);
             plugin.saveGui(newId);
-            sender.sendMessage(ChatColor.GREEN + "GUI copied from '" + sourceId + "' to '" + newId + "'");
+            sender.sendMessage(lang.getMessage("command.copy.success", "{original_id}", sourceId, "{new_id}", newId));
             return true;
         }
 
-        // 플레이어 전용 명령어 체크
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use create and edit commands");
+            sender.sendMessage(lang.getMessage("player_only"));
             return true;
         }
         Player player = (Player) sender;
 
-        // [CREATE] - 생성 (유연한 인수 처리 반영)
         if (sub.equals("create")) {
             if (!player.hasPermission("guimanager.create")) {
-                player.sendMessage(ChatColor.RED + "No permission");
+                player.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 2) {
-                player.sendMessage(ChatColor.RED + "Usage: /gui create <id> [rows] [title]");
+                player.sendMessage(lang.getMessage("command.create.usage"));
                 return true;
             }
 
             String guiId = args[1];
             if (plugin.getGui(guiId) != null) {
-                player.sendMessage(ChatColor.RED + "GUI already exists");
+                player.sendMessage(lang.getMessage("command.create.gui_exists", "{id}", guiId));
                 return true;
             }
 
-            int rows = 1; // 기본값
-            String title = "§rDefault GUI"; // 기본값
+            int rows = 1;
+            String title = "Default GUI";
 
-            // 인수가 3개 이상일 때 (rows 입력됨)
             if (args.length >= 3) {
                 try {
                     rows = Integer.parseInt(args[2]);
                 } catch (NumberFormatException e) {
-                    player.sendMessage(ChatColor.RED + "Rows must be a number. Defaulting to 1.");
+                    player.sendMessage(lang.getMessage("command.create.invalid_number"));
                     rows = 1;
                 }
             }
 
-            // 인수가 4개 이상일 때 (title 입력됨)
             if (args.length >= 4) {
                 StringBuilder titleBuilder = new StringBuilder();
                 for (int i = 3; i < args.length; i++) {
                     titleBuilder.append(args[i]).append(" ");
                 }
-                title = ChatColor.translateAlternateColorCodes('&', titleBuilder.toString().trim());
+                title = GUIManager.color(titleBuilder.toString().trim());
             }
 
             if (rows < 1 || rows > 6) {
-                player.sendMessage(ChatColor.RED + "Rows must be between 1 and 6");
+                player.sendMessage(lang.getMessage("command.create.invalid_rows"));
                 return true;
             }
 
-            // 생성 및 저장
             plugin.createGui(guiId, rows, title);
-            player.sendMessage(ChatColor.GREEN + "GUI '" + guiId + "' created successfully");
+            player.sendMessage(lang.getMessage("command.create.success", "{id}", guiId));
 
-            // 생성 후 즉시 편집기 열기
             GUI createdGui = plugin.getGui(guiId);
             if (createdGui != null) {
                 MainGuiEditor.open(player, createdGui);
@@ -237,36 +237,41 @@ public class GUICommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // [EDIT] - 편집
         if (sub.equals("edit")) {
             if (!player.hasPermission("guimanager.edit")) {
-                player.sendMessage(ChatColor.RED + "No permission");
+                player.sendMessage(lang.getMessage("no_permission"));
                 return true;
             }
             if (args.length < 2) {
-                player.sendMessage(ChatColor.RED + "Usage: /gui edit <id>");
+                player.sendMessage(lang.getMessage("command.edit.usage"));
                 return true;
             }
             String guiId = args[1];
             GUI gui = plugin.getGui(guiId);
             if (gui == null) {
-                player.sendMessage(ChatColor.RED + "GUI not found");
+                player.sendMessage(lang.getMessage("gui_not_exist", "{id}", guiId));
                 return true;
             }
             MainGuiEditor.open(player, gui);
             return true;
         }
 
-        return false;
+        sender.sendMessage(lang.getMessage("command.unknown_command"));
+        return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
-            completions.add("create"); completions.add("edit"); completions.add("open");
-            completions.add("list"); completions.add("reload"); completions.add("delete");
-            completions.add("copy"); completions.add("import");
+            completions.add("create");
+            completions.add("edit");
+            completions.add("open");
+            completions.add("list");
+            completions.add("reload");
+            completions.add("delete");
+            completions.add("copy");
+            completions.add("import");
         } else if (args.length == 2) {
             String sub = args[0].toLowerCase();
             if (sub.equals("edit") || sub.equals("open") || sub.equals("delete") || sub.equals("copy")) {
@@ -276,7 +281,9 @@ public class GUICommand implements CommandExecutor, TabCompleter {
                 completions.add("deluxemenus");
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("create")) {
-            for (int i = 1; i <= 6; i++) completions.add(String.valueOf(i));
+            for (int i = 1; i <= 6; i++) {
+                completions.add(String.valueOf(i));
+            }
         }
         return completions;
     }

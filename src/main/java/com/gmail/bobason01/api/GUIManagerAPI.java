@@ -2,10 +2,7 @@ package com.gmail.bobason01.api;
 
 import com.gmail.bobason01.GUI;
 import com.gmail.bobason01.GUIManager;
-import com.gmail.bobason01.event.GUIOpenEvent;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Map;
@@ -19,16 +16,7 @@ public class GUIManagerAPI {
     }
 
     public static void openGUI(Player player, String guiId) {
-        if (player == null || guiId == null) return;
-
-        GUIOpenEvent event = new GUIOpenEvent(player, guiId);
-        Bukkit.getPluginManager().callEvent(event);
-        if (event.isCancelled()) return;
-
-        Inventory inv = getPlugin().getPlayerSpecificInventory(player, guiId);
-        if (inv != null) {
-            player.openInventory(inv);
-        }
+        getPlugin().openGui(player, guiId);
     }
 
     public static void createGUI(String id, int rows, String title) {
